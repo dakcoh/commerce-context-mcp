@@ -1,0 +1,14 @@
+spring:
+  main:
+    banner-mode: off
+  ai:
+    mcp:
+      server:
+        stdio: true
+
+# STDIO 모드에서는 HTTP 통신이 불필요하므로 랜덤 포트로 충돌 방지
+server:
+  port: 0
+
+logging:
+  config: classpath:logback-stdio.xml

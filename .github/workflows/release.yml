@@ -1,0 +1,75 @@
+name: Release
+
+# v* 태그 푸시 시 실행 (예: git tag v0.0.1 && git push origin v0.0.1)
+on:
+  push:
+    tags:
+      - 'v*'
+
+# ── 릴리즈 흐름 ────────────────────────────────────────────────────────────────
+#
+#  이 리포(context-engine)는 private 소스 리포입니다.
+#  JAR 파일은 별도 public 리포(dakcoh/commerce-context-mcp)에 수동으로 업로드합니다.
+#
+#  전체 릴리즈 절차:
+#  1. ./gradlew bootJar "-Pversion=X.Y.Z"  → JAR 빌드 (로컬)
+#  2. dakcoh/commerce-context-mcp 리포에 GitHub Release 생성 후 JAR 업로드 (수동)
+#  3. git tag vX.Y.Z && git push origin vX.Y.Z  → 이 워크플로우 트리거
+#     → 테스트 통과 확인 후 npm publish 자동 실행
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'corretto'
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle.kts', '**/gradle-wrapper.properties') }}
+
+      # ── 전체 테스트 통과 확인 ──────────────────────────────────────────────
+      - name: Build & Test
+        run: |
+          chmod +x gradlew
+          ./gradlew build "-Pversion=${{ steps.version.outputs.VERSION }}" --no-daemon
+
+      # ── npm 패키지 버전 동기화 후 publish ─────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Sync npm version & publish
+        working-directory: npm
+        run: |
+          node -e "
+            const fs  = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '${{ steps.version.outputs.VERSION }}';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            console.log('npm version:', pkg.version);
+          "
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

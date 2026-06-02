@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "commerce-context": {
+      "command": "C:\\Users\\김정민\\.jdks\\corretto-21.0.11\\bin\\java.exe",
+      "args": [
+        "-jar",
+        "C:\\project\\context-engine\\build\\libs\\context-engine-0.0.1-SNAPSHOT.jar",
+        "--spring.profiles.active=stdio"
+      ]
+    }
+  }
+}

@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: context-engine
+  ai:
+    mcp:
+      server:
+        name: commerce-context-engine
+        version: 0.0.1
+        type: SYNC
+        annotation-scanner:
+          tool-beans:
+            - inventoryContextTool
+            - paymentContextTool
+            - settlementContextTool
+            - couponContextTool
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,mappings

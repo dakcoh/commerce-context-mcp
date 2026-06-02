@@ -1,0 +1,80 @@
+inventory:
+  items:
+    - id: stock-reservation
+      category: lifecycle
+      title: "재고 예약/확정/복구 단계 분리"
+      content: |
+        재고 차감은 반드시 3단계로 처리한다.
+        1. 예약(Reserve): 주문 요청 시 가용 재고를 임시 잠금
+        2. 확정(Confirm): 결제 성공 시 실제 차감
+        3. 복구(Release): 결제 실패/취소 시 예약 해제
+        예약 단계 없이 바로 stock - quantity 하면 결제 실패 시 재고 미복구 및 오버셀링 발생.
+      tags: [reservation, lifecycle, overselling]
+
+    - id: concurrency-optimistic
+      category: concurrency
+      title: "낙관락 (Optimistic Lock)"
+      content: |
+        @Version private Long version; 으로 적용.
+        충돌이 드문 경우(재고 여유, 동시 주문 적음)에 사용.
+        장점: DB 락 없음, 성능 우수.
+        단점: 충돌 시 재시도 로직 필요. 재시도 횟수 제한 없으면 무한 루프 위험.
+      tags: [concurrency, optimistic-lock]
+
+    - id: concurrency-pessimistic
+      category: concurrency
+      title: "비관락 (Pessimistic Lock)"
+      content: |
+        @Lock(LockModeType.PESSIMISTIC_WRITE) 로 적용.
+        충돌이 잦은 경우(인기 상품, 한정 수량)에 사용.
+        장점: 충돌 원천 차단.
+        단점: DB 커넥션 점유, 데드락 위험.
+        주의: 반드시 타임아웃 설정, 락 순서 일관성 유지.
+      tags: [concurrency, pessimistic-lock, deadlock]
+
+    - id: concurrency-distributed
+      category: concurrency
+      title: "분산락 (Distributed Lock — Redis)"
+      content: |
+        Redisson: RLock lock = redissonClient.getLock("inventory:" + productId);
+        lock.tryLock(3, 5, TimeUnit.SECONDS); // 대기 3초, 점유 5초
+        다중 서버/MSA 환경에서 사용.
+        주의: 락 TTL 반드시 설정 (서버 장애 시 자동 해제).
+      tags: [concurrency, distributed-lock, redis, msa]
+
+    - id: idempotency
+      category: idempotency
+      title: "멱등성 설계 (중복 요청 방어)"
+      content: |
+        요청마다 idempotency key 부여: "order:{orderId}:inventory:{productId}"
+        이미 처리된 키면 저장된 결과를 그대로 반환.
+        키는 TTL 24시간으로 저장.
+        멱등성 없으면 네트워크 재시도 시 재고 이중 차감 발생.
+      tags: [idempotency, duplicate-request]
+
+    - id: saga-pattern
+      category: consistency
+      title: "Saga 패턴 (주문-결제-재고 정합성)"
+      content: |
+        정상 흐름: 주문 생성 → 재고 예약 → 결제 요청 → 결제 성공 → 재고 확정 차감 → 주문 완료
+        실패 보상: 결제 실패 → 재고 예약 해제 → 주문 취소
+        재고 예약 실패 → 주문 취소 (결제 미진행)
+        주의: MSA 환경에서 @Transactional로는 정합성 보장 불가.
+        Saga 또는 Outbox 패턴 적용 필요.
+      tags: [saga, consistency, distributed-transaction, outbox]
+
+    - id: ai-pitfalls-checklist
+      category: checklist
+      title: "재고 구현 시 AI가 자주 빠뜨리는 패턴 체크리스트"
+      content: |
+        아래 항목을 반드시 확인하세요:
+
+        [ ] 재고 예약 단계 없이 바로 차감하지 않았는가?
+        [ ] 결제 실패 시 재고 복구 로직이 존재하는가?
+        [ ] 동시 요청에 대한 동시성 제어가 적용됐는가? (낙관락/비관락/분산락 중 선택)
+        [ ] 재고 차감 API에 멱등성 키가 적용됐는가?
+        [ ] 비관락 사용 시 타임아웃 설정과 데드락 방어가 있는가?
+        [ ] 분산락 사용 시 TTL이 설정됐는가?
+        [ ] MSA 구조라면 Saga 보상 트랜잭션이 정의됐는가?
+        [ ] 재고 부족 시 적절한 예외 처리와 메시지가 있는가?
+      tags: [checklist, pitfalls, review]

@@ -1,0 +1,87 @@
+settlement:
+  items:
+    - id: settlement-timing
+      category: timing
+      title: "정산 시점과 정산 기준일 처리"
+      content: |
+        이커머스 정산의 핵심 복잡성: 언제를 기준으로 정산하는가.
+
+        정산 시점 유형:
+        1. 구매 확정 기준: 고객이 '구매 확정'을 누른 날 → 가장 명확, 가장 늦음
+        2. 배송 완료 기준: 택배사 배송 완료 확인 시점 → 자동화 가능
+        3. 결제 완료 기준: 결제 성공 시점 → 가장 빠르나 반품 리스크
+
+        AI가 빠뜨리는 것:
+        - 환불/반품 가능 기간이 끝나기 전에 정산하면 차후 공제 처리 복잡도 폭증
+        - 정산 기준일이 주말/공휴일이면 다음 영업일로 이월 처리 필요
+        - 부분 취소된 주문의 정산 금액 재계산 누락
+      tags: [settlement, timing, purchase-confirm, delivery]
+
+    - id: settlement-deduction
+      category: deduction
+      title: "정산 공제 항목 처리"
+      content: |
+        정산 지급액 = 판매금액 - 수수료 - 반품금액 - 프로모션 분담금 - 쿠폰 분담금
+
+        공제 항목별 주의사항:
+
+        1. 수수료: 카테고리별 수수료율 다름, 정산 시점마다 요율 변동 가능
+        2. 반품 공제: 이미 정산된 건의 반품 → 다음 정산 주기에 음수(-)로 처리
+        3. 프로모션 분담금: 플랫폼 부담분 vs 셀러 부담분 비율 계산 필요
+        4. 쿠폰 분담금: 쿠폰 발행 주체(플랫폼/셀러)에 따라 공제 대상 다름
+
+        주의: 공제 후 금액이 음수(-)가 될 수 있음
+        → 다음 정산 주기로 이월하거나 셀러에게 별도 청구
+      tags: [settlement, deduction, fee, refund, promotion]
+
+    - id: settlement-cycle
+      category: cycle
+      title: "정산 주기와 배치 처리"
+      content: |
+        일반적인 정산 주기: 일 정산, 주 정산, 월 정산
+
+        배치 처리 시 주의사항:
+        1. 멱등성 보장: 같은 날 배치가 2번 실행돼도 중복 정산 발생 X
+           → 정산 실행 전 당일 정산 완료 여부 체크
+        2. 대용량 처리: 주문 건수가 많을 때 페이징 처리 필수 (전체 조회 금지)
+        3. 실패 복구: 배치 중단 시 재시작 지점(Cursor) 유지
+        4. 정산 잠금: 배치 실행 중 해당 주문의 상태 변경 방지
+
+        정산 상태 흐름:
+        UNSETTLED → SETTLEMENT_PENDING → SETTLED → (반품 시) DEDUCTED
+      tags: [settlement, batch, cycle, idempotency, cursor]
+
+    - id: settlement-integrity
+      category: integrity
+      title: "정산 데이터 정합성 검증"
+      content: |
+        정산 완료 후 반드시 검증해야 할 항목:
+
+        1. 금액 정합성: 주문 합계 = 정산 지급액 + 수수료 + 공제 합계
+        2. 건수 정합성: 정산 대상 주문 수 = 실제 정산 처리된 주문 수
+        3. 중복 정산 없음: 동일 주문 ID가 여러 정산 레코드에 없는지 확인
+        4. 누락 주문 없음: 정산 기준일 내 구매 확정 주문 중 미정산 건 0
+
+        정합성 깨지는 주요 원인:
+        - 정산 배치 실행 중 주문 상태 변경 (동시성 문제)
+        - 타임존 설정 오류 (UTC vs KST 혼용)
+        - 정산 기준일 경계값 처리 오류 (23:59:59 vs 24:00:00)
+      tags: [settlement, integrity, validation, timezone]
+
+    - id: settlement-ai-pitfalls-checklist
+      category: checklist
+      title: "정산 구현 시 AI가 자주 빠뜨리는 패턴 체크리스트"
+      content: |
+        아래 항목을 반드시 확인하세요:
+
+        [ ] 정산 기준일 유형(구매 확정/배송 완료/결제 완료)이 명확히 정의됐는가?
+        [ ] 주말/공휴일 정산 기준일 이월 처리가 있는가?
+        [ ] 정산 배치에 멱등성 처리가 있는가? (중복 실행 방지)
+        [ ] 대용량 주문 처리 시 페이징이 적용됐는가?
+        [ ] 이미 정산된 건의 반품 시 다음 주기 음수 공제 처리가 있는가?
+        [ ] 쿠폰/프로모션 분담금 비율 계산 로직이 있는가?
+        [ ] 정산 공제 후 음수 발생 케이스가 처리됐는가?
+        [ ] 정산 완료 후 금액/건수 정합성 검증 로직이 있는가?
+        [ ] 타임존(UTC/KST)이 일관되게 적용됐는가?
+        [ ] 정산 상태 전이 흐름이 정의됐는가? (UNSETTLED → SETTLED)
+      tags: [checklist, pitfalls, settlement, review]

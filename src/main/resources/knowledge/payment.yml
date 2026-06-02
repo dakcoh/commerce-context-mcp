@@ -1,0 +1,113 @@
+payment:
+  items:
+    - id: webhook-handling
+      category: webhook
+      title: "결제 웹훅 처리 원칙"
+      content: |
+        결제 PG사는 결제 완료/실패 결과를 웹훅(HTTP POST)으로 전송한다.
+        AI가 자주 빠뜨리는 3가지:
+
+        1. 수신 즉시 HTTP 200 응답 필수
+           - 처리 로직을 완료한 후 응답하면 PG사 타임아웃(보통 5~10초)으로 재전송 루프 발생
+           - 패턴: 수신 → 즉시 200 → 비동기 큐(Kafka/DB) → 별도 워커 처리
+
+        2. 웹훅 서명 검증 필수
+           - PG사가 제공하는 HMAC-SHA256 서명을 반드시 검증
+           - 검증 없으면 외부 위조 웹훅으로 결제 완료 처리 가능 (보안 취약점)
+
+        3. 멱등성 처리 필수
+           - PG사는 응답 수신 실패 시 최대 N회 재전송
+           - 웹훅 ID 또는 결제 번호로 중복 수신 여부 확인 후 처리
+      tags: [webhook, async, signature, idempotency, security]
+
+    - id: duplicate-payment-guard
+      category: duplicate
+      title: "중복 결제 방어"
+      content: |
+        같은 주문에 결제가 2번 이상 발생하는 시나리오:
+        - 사용자가 결제 버튼 연속 클릭
+        - 네트워크 재시도로 결제 요청 중복 전송
+        - 프론트엔드 이중 submit
+
+        방어 전략 (3중 방어):
+        1. 주문 상태 검증: 결제 요청 전 주문이 PENDING 상태인지 확인
+           - 이미 PAID/CANCELLED 상태면 결제 진행 X
+        2. 멱등성 키: 결제 요청 시 고유 키 포함 (PG사 API에 idempotency-key 헤더 전달)
+           - 같은 키로 중복 요청 시 PG사가 첫 번째 결과를 그대로 반환
+        3. PG사 결제 번호 중복 확인: DB에 동일 pg_payment_id 존재 여부 체크
+
+        주의: 낙관락(@Version)으로 주문 상태 업데이트 시 동시 요청 방어
+      tags: [duplicate, idempotency, optimistic-lock, payment-status]
+
+    - id: network-cancellation
+      category: network-cancel
+      title: "망취소 처리 (결제 응답 불명확 상황)"
+      content: |
+        망취소: 결제 요청을 보냈으나 응답을 받지 못한 경우 (네트워크 단절, 타임아웃)
+        - 결제가 실제로 됐는지, 안 됐는지 알 수 없는 상태
+        - AI가 거의 항상 빠뜨리는 케이스
+
+        처리 패턴:
+        1. 결제 요청 직전에 DB에 PENDING 상태로 기록
+        2. 응답 타임아웃 발생 시 → 주문을 UNCERTAIN 상태로 전환
+        3. 스케줄러가 주기적으로 PG사에 결제 상태 조회 (결제 조회 API 호출)
+        4. PG사 응답에 따라 PAID / CANCELLED 로 상태 확정
+        5. 확정 불가 시 설정된 타임아웃(예: 30분) 후 자동 취소 처리
+
+        핵심: 망취소 상태의 주문을 방치하면 재고가 예약된 채 고객에게 서비스 불가
+      tags: [network-cancel, timeout, scheduler, payment-status, uncertainty]
+
+    - id: partial-refund
+      category: refund
+      title: "부분 취소 / 환불 처리"
+      content: |
+        부분 취소의 복잡성:
+        1. 재고 복구 수량 계산: 취소된 상품 수량만큼만 재고 복구
+        2. 쿠폰/포인트 병행 사용 시 환불 금액 계산:
+           - 쿠폰 할인 비율에 따라 취소 상품의 실제 결제금액 역산 필요
+           - 예: 10,000원 주문에 1,000원 쿠폰 사용 → 5,000원 상품 부분 취소 시 환불액 = 5,000 × (9,000/10,000) = 4,500원
+        3. 이미 정산 완료된 건의 환불:
+           - PG사 정산 후 환불은 별도 출금 프로세스 필요
+           - 정산 완료 여부를 환불 API 호출 전 반드시 확인
+
+        부분 취소 후 처리:
+        - 남은 주문 금액으로 쿠폰 사용 조건 재검증
+        - 포인트 적립 금액 재계산 (일부 취소 시 적립 포인트도 차감)
+      tags: [partial-refund, coupon, point, settlement, refund-calculation]
+
+    - id: payment-idempotency
+      category: idempotency
+      title: "결제 API 멱등성 키 설계"
+      content: |
+        결제 요청은 반드시 멱등성 키가 필요하다.
+        네트워크 오류로 같은 결제 요청이 2번 전달되면 이중 결제 발생.
+
+        키 설계 원칙:
+        - 주문 단위: "payment:{orderId}:{attempt}" — 재시도마다 attempt 증가
+        - 또는 UUID v4를 결제 시도마다 생성, DB에 저장
+
+        PG사 연동 방법:
+        - HTTP 헤더: Idempotency-Key: {key}
+        - 같은 키로 재요청 시 PG사가 첫 번째 결과를 캐시해서 반환 (실제 결제 미발생)
+
+        키 TTL: 24시간 권장 (PG사 정책에 따라 다름)
+        주의: 결제 실패 후 재시도 시에는 새 키를 생성해야 한다 (실패 결과가 캐시될 수 있음)
+      tags: [idempotency, payment-key, retry, pg]
+
+    - id: payment-ai-pitfalls-checklist
+      category: checklist
+      title: "결제 구현 시 AI가 자주 빠뜨리는 패턴 체크리스트"
+      content: |
+        아래 항목을 반드시 확인하세요:
+
+        [ ] 웹훅 수신 즉시 HTTP 200 응답을 반환하는가? (처리 완료 후 응답 X)
+        [ ] 웹훅 서명(HMAC-SHA256) 검증 로직이 있는가?
+        [ ] 웹훅 중복 수신 방어 (멱등성 처리)가 있는가?
+        [ ] 결제 요청 전 주문 상태(PENDING)를 검증하는가?
+        [ ] PG사 API 호출 시 Idempotency-Key 헤더를 전달하는가?
+        [ ] 망취소 상황 (응답 타임아웃) 처리 로직이 있는가?
+        [ ] 부분 취소 시 쿠폰/포인트 환불 금액을 역산하는가?
+        [ ] 정산 완료 후 환불 처리를 별도 프로세스로 분리했는가?
+        [ ] 결제 실패 재시도 시 새 멱등성 키를 생성하는가?
+        [ ] 동시 결제 요청에 낙관락(@Version) 또는 상태 CAS 처리가 있는가?
+      tags: [checklist, pitfalls, review, payment]
