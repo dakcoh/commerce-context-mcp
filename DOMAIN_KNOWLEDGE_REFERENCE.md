@@ -9,8 +9,10 @@
 
 1. [재고 도메인](#1-재고-도메인)
 2. [주문/결제 도메인](#2-주문결제-도메인)
-3. [정산 도메인](#3-정산-도메인) *(예정)*
-4. [쿠폰/프로모션 도메인](#4-쿠폰프로모션-도메인) *(예정)*
+3. [정산 도메인](#3-정산-도메인)
+4. [쿠폰/프로모션 도메인](#4-쿠폰프로모션-도메인)
+5. [범용 이커머스 기반 지식](#5-범용-이커머스-기반-지식)
+6. [Java Spring 이커머스 구현 지식](#6-java-spring-이커머스-구현-지식)
 
 ---
 
@@ -275,6 +277,63 @@ DB: userId + couponId UNIQUE 제약  → 최종 안전망
 
 ---
 
+## 5. 범용 이커머스 기반 지식
+
+도메인별 구현 팁과 별도로, 신규 쇼핑몰 구축과 아키텍처 리뷰에서 반복 사용하는
+범용 이커머스 판단 기준을 `src/main/resources/knowledge/commerce.yml`에 정규화한다.
+
+### 5-1. 정규화 원칙
+
+각 지식은 단순한 한 줄 조언이 아니라 아래 정보를 독립 필드로 보관한다.
+
+| 필드 | 의미 |
+|------|------|
+| `summary` | 빠르게 읽을 수 있는 핵심 결론 |
+| `business-context` | 해당 규칙이 필요한 이커머스 유통 맥락 |
+| `invariants` | 구현 방식이 바뀌어도 지켜야 하는 불변식 |
+| `workflow` | 권장 업무·시스템 처리 순서 |
+| `technical-guidance` | 범용적인 기술 구현 참고 |
+| `failure-scenarios` | 누락 시 발생하는 장애와 데이터 불일치 |
+| `checklist` | 코드 리뷰와 출시 전 검증 질문 |
+
+### 5-2. 기본 지식 10개
+
+| category | 지식 ID | 핵심 범위 |
+|----------|---------|----------|
+| `catalog` | `commerce-catalog-model` | Product, SKU, Offer 분리 |
+| `pricing` | `commerce-pricing-money` | 금액 계산, 반올림, 가격 스냅샷 |
+| `order` | `commerce-order-lifecycle` | 주문 상태 전이와 이력 |
+| `inventory` | `commerce-inventory-availability` | 실재고, 예약, 판매 가능 수량 |
+| `payment` | `commerce-payment-ledger` | 결제 거래 원장과 대사 |
+| `fulfillment` | `commerce-fulfillment-reverse-logistics` | 배송, 반품, 역물류 |
+| `promotion` | `commerce-promotion-allocation` | 할인 계산, 배부, 부담 주체 |
+| `distribution` | `commerce-channel-seller-distribution` | 유통 채널, 판매자, 외부 동기화 |
+| `settlement` | `commerce-settlement-reconciliation` | 판매자 정산과 자동 대사 |
+| `operations` | `commerce-operational-integrity` | Outbox, DLQ, 감사 로그, 보정 |
+
+이 스키마는 YAML 검증 후 DB 지식 저장소의 초기 모델로 사용한다.
+
+---
+
+## 6. Java Spring 이커머스 구현 지식
+
+유통 도메인 원칙과 별도로, Java 21 + Spring Boot 기반 웹 백엔드에서 반복 사용하는
+구현 기준을 `src/main/resources/knowledge/spring-commerce.yml`에 정규화한다.
+
+| category | 지식 ID | 핵심 범위 |
+|----------|---------|----------|
+| `architecture` | `spring-commerce-modular-monolith` | 모듈형 모놀리스와 도메인 경계 |
+| `transaction` | `spring-commerce-transaction-boundary` | 짧은 트랜잭션과 외부 API 분리 |
+| `persistence` | `spring-commerce-jpa-consistency` | JPA Entity, DTO, N+1, cursor |
+| `concurrency` | `spring-commerce-locking-idempotency` | 락, UNIQUE 제약, 멱등성 |
+| `api` | `spring-commerce-validation-errors` | Bean Validation, 오류 코드, 마스킹 |
+| `messaging` | `spring-commerce-events-outbox` | Outbox, 멱등 Consumer, DLQ |
+| `cache` | `spring-commerce-cache-boundary` | Redis 캐시와 DB 원장 분리 |
+| `batch` | `spring-commerce-scheduler-batch` | 스케줄러 중복 실행과 재시작 |
+| `quality` | `spring-commerce-testing-observability` | Testcontainers, Micrometer, 로그 |
+
+---
+
 ## 지식 모듈 추가 가이드
 
 새로운 도메인 지식을 추가할 때는 아래 순서를 따른다.
@@ -294,3 +353,8 @@ DB: userId + couponId UNIQUE 제약  → 최종 안전망
 | 버전 | 날짜 | 내용 |
 |------|------|------|
 | 0.1.0 | 2026-06-02 | 초안 작성 — 재고 도메인 |
+| 0.2.0 | 2026-06-02 | 결제 도메인 추가 (웹훅, 중복결제, 망취소, 부분환불, 멱등성) |
+| 0.3.0 | 2026-06-02 | 정산 도메인 추가 (시점, 공제, 배치, 정합성) |
+| 0.4.0 | 2026-06-02 | 쿠폰/프로모션 도메인 추가 (검증, 계산, 선착순 발급, 규칙 엔진) |
+| 0.5.0 | 2026-06-02 | 범용 이커머스 정규화 지식 10개 추가 (commerce.yml) |
+| 0.6.0 | 2026-06-02 | Java Spring 이커머스 구현 지식 9개 추가 (spring-commerce.yml) |

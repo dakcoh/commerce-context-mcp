@@ -6,9 +6,10 @@
 
 ## 프로젝트 한 줄 요약
 
-**Spring AI MCP Server** 기반의 이커머스 도메인 지식 주입 서버.
+**Spring AI MCP Server** 기반의 Java Spring 이커머스 웹 개발 지식 주입 서버.
 Claude Code / Cursor 같은 AI 코딩 도구가 이커머스 백엔드를 개발할 때,
-도메인 함정(오버셀링, 멱등성 누락, 분산 트랜잭션 미처리 등)을 자동으로 경고한다.
+유통 도메인 함정(오버셀링, 멱등성 누락, 분산 트랜잭션 미처리 등)과
+Spring 구현 함정(긴 트랜잭션, JPA N+1, 중복 배치, Redis 원장 오용 등)을 자동으로 경고한다.
 
 ---
 
@@ -39,12 +40,28 @@ com.commerce.context_engine          ← 루트 패키지 (밑줄 사용, 하이
 │   └── InventoryKnowledgeProperties.java  ← @ConfigurationProperties("inventory")
 ├── domain/payment/
 │   └── PaymentKnowledgeProperties.java    ← @ConfigurationProperties("payment")
+├── domain/settlement/
+│   └── SettlementKnowledgeProperties.java ← @ConfigurationProperties("settlement")
+├── domain/coupon/
+│   └── CouponKnowledgeProperties.java     ← @ConfigurationProperties("coupon")
+├── domain/commerce/
+│   └── CommerceKnowledgeProperties.java   ← @ConfigurationProperties("commerce"), 정규화 범용 지식
+├── domain/springcommerce/
+│   └── SpringCommerceKnowledgeProperties.java ← @ConfigurationProperties("spring-commerce"), Spring 구현 지식
 ├── service/
 │   ├── InventoryKnowledgeService.java     ← 재고 지식 쿼리 로직
-│   └── PaymentKnowledgeService.java       ← 결제 지식 쿼리 로직
+│   ├── PaymentKnowledgeService.java       ← 결제 지식 쿼리 로직
+│   ├── SettlementKnowledgeService.java    ← 정산 지식 쿼리 로직
+│   ├── CouponKnowledgeService.java        ← 쿠폰 지식 쿼리 로직
+│   ├── CommerceKnowledgeService.java      ← 범용 이커머스 지식 검색·포맷
+│   └── SpringCommerceKnowledgeService.java ← Java Spring 구현 지식 검색·포맷
 └── tool/
     ├── InventoryContextTool.java          ← @Tool 6개 (재고)
-    └── PaymentContextTool.java            ← @Tool 7개 (결제)
+    ├── PaymentContextTool.java            ← @Tool 7개 (결제)
+    ├── SettlementContextTool.java         ← @Tool 6개 (정산)
+    ├── CouponContextTool.java             ← @Tool 6개 (쿠폰/프로모션)
+    ├── CommerceContextTool.java           ← @Tool 3개 (범용 이커머스)
+    └── SpringCommerceContextTool.java     ← @Tool 3개 (Java Spring 구현)
 ```
 
 ---
@@ -52,7 +69,12 @@ com.commerce.context_engine          ← 루트 패키지 (밑줄 사용, 하이
 ## 지식 데이터 위치
 
 ```
-src/main/resources/knowledge/inventory.yml   ← 재고 도메인 지식 (MVP)
+src/main/resources/knowledge/inventory.yml    ← 재고 도메인 지식
+src/main/resources/knowledge/payment.yml      ← 결제 도메인 지식
+src/main/resources/knowledge/settlement.yml   ← 정산 도메인 지식
+src/main/resources/knowledge/coupon.yml       ← 쿠폰/프로모션 도메인 지식
+src/main/resources/knowledge/commerce.yml     ← 범용 이커머스 정규화 지식 10개
+src/main/resources/knowledge/spring-commerce.yml ← Java Spring 이커머스 구현 지식 9개
 ```
 
 **YAML 구조**:
@@ -67,6 +89,24 @@ inventory:
 ```
 
 새 지식 항목 추가는 이 YAML만 편집하면 된다. 코드 변경 불필요.
+
+`commerce.yml`은 범용 지식을 DB 전환 전에 검증하기 위한 정규화 스키마를 사용한다.
+
+```yaml
+commerce:
+  items:
+    - id: unique-id
+      category: catalog | pricing | order | inventory | payment | fulfillment | promotion | distribution | settlement | operations
+      title: "표시 제목"
+      summary: "핵심 요약"
+      business-context: "이커머스 유통 맥락"
+      invariants: ["반드시 지켜야 할 원칙"]
+      workflow: ["권장 처리 흐름"]
+      technical-guidance: ["기술 구현 참고"]
+      failure-scenarios: ["장애 및 실패 시나리오"]
+      checklist: ["검토 질문"]
+      tags: [tag1, tag2]
+```
 
 ---
 
@@ -95,6 +135,44 @@ inventory:
 | `get_payment_checklist` | 결제 AI 구현 실수 체크리스트 |
 | `search_payment_knowledge` | 결제 도메인 키워드 검색 |
 
+**정산 도메인** (6개)
+
+| 도구명 | 설명 |
+|--------|------|
+| `get_settlement_timing` | 정산 시점과 기준일 처리 가이드 |
+| `get_settlement_deduction` | 정산 공제와 음수 정산 처리 |
+| `get_settlement_cycle` | 정산 배치 멱등성과 실패 복구 |
+| `get_settlement_integrity` | 정산 정합성과 타임존 검증 |
+| `get_settlement_checklist` | 정산 AI 구현 실수 체크리스트 |
+| `search_settlement_knowledge` | 정산 도메인 키워드 검색 |
+
+**쿠폰/프로모션 도메인** (6개)
+
+| 도구명 | 설명 |
+|--------|------|
+| `get_coupon_validation_guide` | 쿠폰 유효성 검증 가이드 |
+| `get_coupon_discount_calculation` | 할인 캡과 부분 취소 역산 |
+| `get_coupon_issuance_guide` | 선착순 쿠폰 발급 동시성 처리 |
+| `get_promotion_rules_guide` | 프로모션 규칙 엔진 설계 |
+| `get_coupon_checklist` | 쿠폰 AI 구현 실수 체크리스트 |
+| `search_coupon_knowledge` | 쿠폰/프로모션 키워드 검색 |
+
+**범용 이커머스 지식** (3개)
+
+| 도구명 | 설명 |
+|--------|------|
+| `get_commerce_foundation_context` | 범용 이커머스 정규화 지식 10개 전체 조회 |
+| `get_commerce_foundation_checklist` | 범용 설계 검토 체크리스트 |
+| `search_commerce_knowledge` | 여러 이커머스 도메인의 통합 키워드 검색 |
+
+**Java Spring 이커머스 구현 지식** (3개)
+
+| 도구명 | 설명 |
+|--------|------|
+| `get_spring_commerce_implementation_context` | Java Spring 이커머스 구현 지식 9개 전체 조회 |
+| `get_spring_commerce_checklist` | Spring 백엔드 구현 체크리스트 |
+| `search_spring_commerce_knowledge` | Spring 구현 지식 키워드 검색 |
+
 ---
 
 ## 개발 규칙
@@ -102,7 +180,7 @@ inventory:
 ### 새 도메인 모듈 추가 순서
 
 ```
-1. md/DOMAIN_KNOWLEDGE_REFERENCE.md 에 지식 정리
+1. DOMAIN_KNOWLEDGE_REFERENCE.md 에 지식 정리
 2. src/main/resources/knowledge/{domain}.yml 작성
 3. domain/{domain}/{Domain}KnowledgeProperties.java 추가
 4. config/KnowledgeConfig.java 에 @PropertySource + @EnableConfigurationProperties 추가
@@ -130,17 +208,32 @@ inventory:
 ## 테스트
 
 ```bash
-./gradlew test        # 전체 단위 + 통합 테스트 (15개)
+./gradlew test        # 전체 단위 + 통합 테스트 (78개)
 ```
 
 **테스트 범위**:
 - `InventoryKnowledgeServiceTest` — 7개: 카테고리 필터, 키워드 검색, 미등록 키워드 처리
-- `InventoryContextToolTest` — 7개: 6개 도구 등록 확인, 각 도구 응답 내용 검증
+- `InventoryContextToolTest` — 9개: 31개 도구 등록 확인, 재고 도구 응답 내용 검증
 - `PaymentKnowledgeServiceTest` — 8개: 웹훅/중복/망취소/환불/멱등성/체크리스트/검색
 - `PaymentContextToolTest` — 7개: 각 결제 도구 응답 내용 검증
+- `SettlementKnowledgeServiceTest` — 7개: 시점/공제/배치/정합성/체크리스트/검색
+- `SettlementContextToolTest` — 6개: 각 정산 도구 응답 내용 검증
+- `CouponKnowledgeServiceTest` — 7개: 검증/계산/발급/프로모션/체크리스트/검색
+- `CouponContextToolTest` — 6개: 각 쿠폰 도구 응답 내용 검증
+- `CommerceKnowledgeServiceTest` — 7개: 정규화 필드, 통합 검색, 추적 메타데이터 검증
+- `CommerceContextToolTest` — 3개: 범용 이커머스 도구 응답 검증
+- `SpringCommerceKnowledgeServiceTest` — 7개: Spring 지식 정규화, 검색 검증
+- `SpringCommerceContextToolTest` — 3개: Java Spring MCP 도구 응답 검증
 - `ContextEngineApplicationTests` — 1개: 컨텍스트 로드 확인
 
 ---
+
+## 리포 구조 (배포 방식)
+
+| 리포 | 공개 여부 | 용도 |
+|------|----------|------|
+| `dakcoh/context-engine` | **private** | 이 소스 코드 |
+| `dakcoh/commerce-context-mcp` | **public** | JAR 릴리즈 + npm 패키지 |
 
 ## npm 패키지 구조
 
@@ -148,17 +241,18 @@ inventory:
 npm/
 ├── package.json         ← 패키지명: commerce-context-mcp
 └── bin/
-    └── index.js         ← Java 체크 → JAR 다운로드 → STDIO 실행
+    └── index.js         ← Java 체크 → JAR 다운로드(public 리포) → STDIO 실행
 ```
 
-**릴리즈 방법** (GitHub + npm 자동화):
+**릴리즈 방법** (상세 절차는 RELEASE.md 참고):
 ```bash
-git tag v0.0.1
-git push origin v0.0.1
-# → GitHub Actions가 자동으로:
-#   1. JAR 빌드 (context-engine-0.0.1.jar)
-#   2. GitHub Release 생성 + JAR 업로드
-#   3. npm publish
+# 1. JAR 빌드
+./gradlew bootJar "-Pversion=0.0.1"
+
+# 2. dakcoh/commerce-context-mcp 리포에 Release + JAR 수동 업로드
+
+# 3. private 리포 태그 푸시 → GitHub Actions가 npm 자동 배포
+git tag v0.0.1 && git push origin v0.0.1
 ```
 
 **사용자 세팅 (최종)**:

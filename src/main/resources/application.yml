@@ -13,6 +13,8 @@ spring:
             - paymentContextTool
             - settlementContextTool
             - couponContextTool
+            - commerceContextTool
+            - springCommerceContextTool
 
 server:
   port: 8080

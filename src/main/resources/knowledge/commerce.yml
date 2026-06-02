@@ -1,0 +1,301 @@
+commerce:
+  items:
+    - id: commerce-catalog-model
+      category: catalog
+      title: "상품 카탈로그: Product, SKU, Offer를 분리한다"
+      summary: "고객이 보는 상품, 실제 판매 단위, 채널별 판매 조건을 하나의 테이블로 합치지 않는다."
+      business-context: |
+        이커머스 유통에서는 같은 상품도 옵션, 판매자, 채널, 판매 기간에 따라 재고와 가격이 달라진다.
+        Product는 고객이 탐색하는 상품 설명, SKU는 재고를 관리하는 최소 단위,
+        Offer는 특정 판매자가 특정 채널에서 제시하는 가격과 판매 조건이다.
+      invariants:
+        - "재고는 Product가 아니라 SKU 단위로 관리한다."
+        - "주문 라인에는 주문 당시의 상품명, 옵션명, 판매자, 가격을 스냅샷으로 보존한다."
+        - "판매 중단과 상품 데이터 삭제를 구분한다. 과거 주문의 참조 무결성을 깨지 않는다."
+      workflow:
+        - "Product에 노출용 이름, 설명, 카테고리, 미디어를 연결한다."
+        - "SKU에 옵션 조합, 바코드, 재고 관리 코드를 연결한다."
+        - "Offer에 판매자, 채널, 판매가, 판매 기간, 판매 상태를 연결한다."
+      technical-guidance:
+        - "product_id, sku_id, offer_id를 분리하고 주문에는 세 식별자와 스냅샷을 함께 저장한다."
+        - "SKU 옵션 조합에는 중복 방지 UNIQUE 제약을 둔다."
+        - "검색 인덱스는 조회 모델로 취급하고 DB 원장과 분리한다."
+      failure-scenarios:
+        - "상품명 변경 후 과거 주문 상세의 상품명이 함께 바뀐다."
+        - "색상 옵션 하나의 품절이 전체 상품 품절로 처리된다."
+        - "판매자별 가격 차이를 표현하지 못해 채널 확장이 막힌다."
+      checklist:
+        - "Product, SKU, Offer의 책임이 분리됐는가?"
+        - "주문 라인에 상품 정보 스냅샷이 남는가?"
+        - "판매 중단 상품도 과거 주문에서 조회 가능한가?"
+      tags: [catalog, product, sku, offer, snapshot, distribution]
+
+    - id: commerce-pricing-money
+      category: pricing
+      title: "가격과 금액: 계산 근거를 스냅샷으로 남긴다"
+      summary: "표시 가격만 저장하지 말고 판매가, 할인, 배송비, 세금, 최종 결제액의 계산 근거를 보존한다."
+      business-context: |
+        이커머스 가격은 상품 판매가 하나로 끝나지 않는다.
+        채널 가격, 회원 등급, 쿠폰, 프로모션, 포인트, 배송비, 세금이 결제액을 바꾼다.
+        환불과 정산은 주문 당시 계산 근거가 없으면 재현할 수 없다.
+      invariants:
+        - "금액은 부동소수점이 아니라 통화의 최소 단위 정수 또는 BigDecimal로 계산한다."
+        - "주문 시점의 가격 구성 요소와 정책 버전을 스냅샷으로 저장한다."
+        - "주문 합계 = 상품 합계 - 할인 합계 + 배송비 + 세금이라는 회계식을 검증한다."
+      workflow:
+        - "상품별 기준 판매가를 결정한다."
+        - "적용 가능한 할인 규칙을 우선순위에 따라 평가한다."
+        - "배송비와 세금을 계산한다."
+        - "최종 결제액과 항목별 배부 금액을 저장한다."
+      technical-guidance:
+        - "Money 값에는 amount와 currency를 함께 둔다."
+        - "할인은 order_discount와 order_line_discount처럼 근거별로 기록한다."
+        - "나눗셈 반올림 차이는 마지막 주문 라인에 보정하여 합계를 일치시킨다."
+      failure-scenarios:
+        - "double 계산 오차로 결제 금액과 정산 금액이 1원 차이 난다."
+        - "부분 환불 시 할인액을 어느 상품에 배부했는지 알 수 없다."
+        - "프로모션 변경 후 과거 주문 금액을 재현하지 못한다."
+      checklist:
+        - "통화와 반올림 정책이 명시됐는가?"
+        - "할인 배부 결과와 정책 버전을 저장하는가?"
+        - "주문 합계 검증 로직이 있는가?"
+      tags: [pricing, money, currency, rounding, discount, snapshot]
+
+    - id: commerce-order-lifecycle
+      category: order
+      title: "주문 생명주기: 상태 전이와 이력을 명시한다"
+      summary: "주문 상태를 임의로 덮어쓰지 말고 허용된 전이, 전이 사유, 행위자를 기록한다."
+      business-context: |
+        주문은 생성, 결제, 상품 준비, 배송, 구매 확정, 취소, 반품으로 이어진다.
+        주문 전체와 주문 라인의 상태가 다를 수 있으며, 부분 취소와 부분 배송이 흔하다.
+      invariants:
+        - "허용된 상태 전이만 수행한다. PAID 주문을 CREATED로 되돌리지 않는다."
+        - "주문 전체 상태와 주문 라인 상태를 분리한다."
+        - "상태 변경 이력에 이전 상태, 이후 상태, 사유, 행위자, 발생 시각을 기록한다."
+      workflow:
+        - "CREATED 상태에서 주문을 생성하고 결제 대기 시간을 제한한다."
+        - "결제 성공 후 PAID, 출고 준비 후 FULFILLING, 배송 완료 후 DELIVERED로 전이한다."
+        - "부분 취소와 반품은 주문 라인 단위로 처리하고 주문 전체 상태를 다시 계산한다."
+      technical-guidance:
+        - "상태 전이 메서드를 엔티티 또는 도메인 서비스에 모으고 임의 setter 사용을 피한다."
+        - "동시 변경에는 version 컬럼 또는 조건부 UPDATE를 사용한다."
+        - "order_status_history를 append-only 이력으로 유지한다."
+      failure-scenarios:
+        - "결제 웹훅과 사용자 취소 요청이 동시에 도착해 잘못된 상태가 저장된다."
+        - "한 상품만 취소했는데 주문 전체가 취소된다."
+        - "운영자가 상태 변경 원인을 추적할 수 없다."
+      checklist:
+        - "주문과 주문 라인의 상태가 분리됐는가?"
+        - "허용 상태 전이 표가 있는가?"
+        - "상태 변경 이력과 동시성 제어가 있는가?"
+      tags: [order, lifecycle, state-machine, history, partial-cancel]
+
+    - id: commerce-inventory-availability
+      category: inventory
+      title: "재고 가용성: 실재고, 예약, 판매 가능 수량을 구분한다"
+      summary: "판매 가능 수량은 단순 stock 값이 아니라 실재고, 예약, 안전재고, 입출고를 반영한 값이다."
+      business-context: |
+        유통 재고는 창고에 존재하는 수량과 고객에게 판매 가능한 수량이 다르다.
+        주문 결제 대기 중인 예약 수량, 파손과 검수 대기, 안전재고, 입고 예정 수량을 구분해야 한다.
+      invariants:
+        - "available_to_promise = on_hand - reserved - safety_stock를 기본 원칙으로 삼는다."
+        - "주문 생성 시 예약하고 결제 성공 시 확정하며 실패 또는 만료 시 예약을 해제한다."
+        - "재고 변경은 SKU, 창고, 변경 사유, 참조 주문을 포함한 원장으로 기록한다."
+      workflow:
+        - "판매 가능 수량을 검증한다."
+        - "제한 시간과 함께 재고를 예약한다."
+        - "결제 성공 시 예약을 확정하고 출고 가능 상태로 전환한다."
+        - "결제 실패나 예약 만료 시 수량을 복구한다."
+      technical-guidance:
+        - "inventory_ledger를 append-only로 기록하고 현재 수량은 집계 또는 별도 projection으로 관리한다."
+        - "충돌 빈도에 따라 낙관락, 비관락, Redis 접수 제어를 선택한다."
+        - "예약 만료 스케줄러는 멱등하게 구현한다."
+      failure-scenarios:
+        - "결제 실패 주문이 재고를 계속 점유한다."
+        - "멀티 창고인데 전체 재고만 관리해 출고할 수 없는 주문을 받는다."
+        - "재고 수량이 어긋났지만 어느 주문 때문인지 추적할 수 없다."
+      checklist:
+        - "실재고, 예약, 안전재고를 구분하는가?"
+        - "예약 만료와 복구 경로가 있는가?"
+        - "재고 변동 원장이 남는가?"
+      tags: [inventory, atp, reservation, warehouse, ledger, overselling]
+
+    - id: commerce-payment-ledger
+      category: payment
+      title: "결제: 주문 상태와 결제 거래 원장을 분리한다"
+      summary: "결제는 성공 여부 한 칸이 아니라 승인, 매입, 취소, 환불 거래의 누적 원장이다."
+      business-context: |
+        결제는 PG사와 네트워크를 사이에 둔 외부 거래다.
+        요청 타임아웃이 실패를 의미하지 않으며, 웹훅은 중복 또는 순서가 뒤바뀌어 도착할 수 있다.
+      invariants:
+        - "주문 상태와 payment_transaction 원장을 분리한다."
+        - "결제 시도마다 멱등성 키를 부여하고 PG 거래 번호에는 UNIQUE 제약을 둔다."
+        - "타임아웃은 FAILED가 아니라 결과를 확인해야 하는 UNCERTAIN 상태로 처리한다."
+      workflow:
+        - "결제 요청 전에 PENDING 거래를 저장한다."
+        - "PG사에 멱등성 키를 포함해 승인 요청한다."
+        - "동기 응답과 서명 검증된 웹훅을 사용해 거래 상태를 확정한다."
+        - "불명확 거래는 조회 API와 스케줄러로 대사한다."
+      technical-guidance:
+        - "payment_transaction은 요청, 응답, PG 거래 번호, 상태, 금액, 시각을 보존한다."
+        - "웹훅 수신은 빠르게 응답하고 비동기 후처리한다."
+        - "환불은 원 결제 거래를 참조하는 별도 거래로 기록한다."
+      failure-scenarios:
+        - "사용자 재클릭으로 같은 주문이 두 번 결제된다."
+        - "PG사는 승인했지만 타임아웃 때문에 서비스가 실패로 기록한다."
+        - "중복 웹훅으로 포인트와 재고가 두 번 처리된다."
+      checklist:
+        - "결제 멱등성 키와 PG 거래 번호 UNIQUE 제약이 있는가?"
+        - "UNCERTAIN 상태와 대사 작업이 있는가?"
+        - "웹훅 서명 검증과 중복 방어가 있는가?"
+      tags: [payment, ledger, idempotency, webhook, reconciliation, uncertain]
+
+    - id: commerce-fulfillment-reverse-logistics
+      category: fulfillment
+      title: "배송과 반품: 정방향 물류와 역물류를 함께 설계한다"
+      summary: "주문 완료만 보지 말고 출고, 배송, 수령, 반품 회수, 검수, 재판매 가능 여부까지 추적한다."
+      business-context: |
+        유통에서는 주문이 결제됐다고 끝나지 않는다.
+        여러 창고와 판매자가 한 주문을 나눠 출고할 수 있고, 반품된 상품은 검수 결과에 따라 재판매 여부가 달라진다.
+      invariants:
+        - "주문 라인과 shipment를 분리하여 부분 출고와 합배송을 표현한다."
+        - "택배사 이벤트는 중복 수신 가능하므로 운송장 번호와 이벤트 ID로 멱등 처리한다."
+        - "반품 회수 완료와 재고 복구 가능 상태를 동일하게 취급하지 않는다."
+      workflow:
+        - "창고와 판매자 기준으로 출고 그룹을 생성한다."
+        - "운송장과 배송 이벤트를 기록한다."
+        - "반품 접수 후 회수, 입고 검수, 환불, 재고 복구 여부를 순서대로 처리한다."
+      technical-guidance:
+        - "shipment, shipment_item, delivery_event, return_request, return_inspection을 분리한다."
+        - "택배 이벤트는 append-only로 저장하고 현재 배송 상태를 projection으로 계산한다."
+        - "반품 재고는 검수 완료 전 sellable 재고에 더하지 않는다."
+      failure-scenarios:
+        - "부분 배송인데 주문 전체를 배송 완료로 표시한다."
+        - "반품 회수 직후 불량 상품을 판매 가능 재고에 복구한다."
+        - "택배 이벤트 역전 도착으로 배송 상태가 과거로 되돌아간다."
+      checklist:
+        - "부분 출고, 합배송, 멀티 창고를 표현할 수 있는가?"
+        - "배송 이벤트가 멱등하고 순서 역전에 안전한가?"
+        - "반품 검수와 판매 가능 재고 복구를 분리했는가?"
+      tags: [fulfillment, shipment, delivery, return, reverse-logistics, warehouse]
+
+    - id: commerce-promotion-allocation
+      category: promotion
+      title: "쿠폰과 프로모션: 혜택 계산, 배부, 사용 이력을 분리한다"
+      summary: "할인 규칙 적용과 실제 주문 라인별 할인 배부 결과를 분리해 환불과 정산을 재현 가능하게 만든다."
+      business-context: |
+        쿠폰과 프로모션은 고객 경험뿐 아니라 환불 금액과 판매자 정산에 영향을 준다.
+        플랫폼 부담, 판매자 부담, 브랜드 부담을 구분하지 않으면 정산 시점에 비용 귀속을 알 수 없다.
+      invariants:
+        - "유효 기간, 대상 상품, 최소 주문 금액, 사용자 한도, 중복 적용 가능 여부를 검증한다."
+        - "적용된 혜택은 주문 라인별로 배부하고 부담 주체를 저장한다."
+        - "쿠폰 사용 상태 변경은 동시 요청에 안전해야 한다."
+      workflow:
+        - "적용 가능한 규칙을 조회하고 우선순위를 평가한다."
+        - "할인 캡과 중복 적용 정책을 반영해 혜택을 계산한다."
+        - "주문 라인별 할인액과 부담 주체별 금액을 배부한다."
+        - "부분 취소 시 남은 주문 조건을 재검증하고 할인액을 역산한다."
+      technical-guidance:
+        - "promotion_rule과 applied_benefit을 분리하고 정책 버전을 저장한다."
+        - "쿠폰 상태는 ISSUED, RESERVED, USED, RELEASED로 관리한다."
+        - "선착순 발급은 Redis Lua Script와 DB UNIQUE 제약을 함께 사용한다."
+      failure-scenarios:
+        - "부분 취소 후 최소 주문 금액 미달인데 쿠폰이 그대로 유지된다."
+        - "같은 쿠폰이 동시 요청으로 두 주문에 사용된다."
+        - "판매자 부담 할인액을 알 수 없어 정산이 틀어진다."
+      checklist:
+        - "할인 캡, 우선순위, 중복 적용 정책이 있는가?"
+        - "주문 라인별 배부와 부담 주체가 저장되는가?"
+        - "부분 취소 시 혜택을 재계산하는가?"
+      tags: [promotion, coupon, allocation, sponsor, partial-refund, lua]
+
+    - id: commerce-channel-seller-distribution
+      category: distribution
+      title: "유통 채널과 판매자: 원장과 채널별 노출 모델을 분리한다"
+      summary: "자사몰, 오픈마켓, 판매자, 창고가 늘어날 것을 고려해 채널별 상품·가격·재고 동기화를 경계로 분리한다."
+      business-context: |
+        이커머스 유통은 자사몰 하나에서 시작해도 외부 마켓, 입점 판매자, 여러 창고로 확장될 수 있다.
+        채널마다 상품 코드, 가격 정책, 재고 반영 지연, 주문 수집 방식이 다르다.
+      invariants:
+        - "내부 SKU를 원장 식별자로 두고 외부 채널 상품 코드는 매핑 테이블로 관리한다."
+        - "채널에 전송한 재고와 실제 원장 재고의 차이를 감시한다."
+        - "외부 주문 수집은 외부 주문 번호와 채널 ID 조합으로 멱등 처리한다."
+      workflow:
+        - "내부 상품과 채널 상품 코드를 매핑한다."
+        - "채널별 판매가와 노출 상태를 발행한다."
+        - "외부 주문을 수집하고 내부 주문으로 변환한다."
+        - "재고, 취소, 배송 상태를 채널로 다시 동기화한다."
+      technical-guidance:
+        - "channel_product_mapping과 channel_sync_history를 둔다."
+        - "외부 API 호출은 재시도, 지수 백오프, 실패 큐를 포함한다."
+        - "채널별 어댑터로 외부 스키마를 내부 모델과 격리한다."
+      failure-scenarios:
+        - "외부 마켓 주문을 중복 수집해 배송이 두 번 진행된다."
+        - "채널 재고 반영 지연으로 품절 상품이 계속 판매된다."
+        - "채널 API 장애가 내부 주문 처리까지 연쇄 중단시킨다."
+      checklist:
+        - "내부 SKU와 외부 상품 코드 매핑이 분리됐는가?"
+        - "외부 주문 수집이 멱등한가?"
+        - "재고 동기화 지연과 API 장애를 감시하는가?"
+      tags: [distribution, channel, seller, marketplace, sync, adapter]
+
+    - id: commerce-settlement-reconciliation
+      category: settlement
+      title: "정산: 주문 합계가 아니라 거래 원장으로 계산한다"
+      summary: "정산은 판매, 수수료, 할인 분담, 배송비, 환불을 근거 거래별로 집계하고 대사해야 한다."
+      business-context: |
+        입점 판매자나 브랜드가 있으면 플랫폼은 누구에게 얼마를 지급해야 하는지 설명할 수 있어야 한다.
+        이미 지급한 주문의 반품은 다음 정산 주기에 음수 공제로 반영될 수 있다.
+      invariants:
+        - "정산 지급액 = 판매금액 - 수수료 - 반품금액 - 판매자 부담 할인 + 판매자 귀속 배송비를 검증한다."
+        - "정산 항목은 원 주문 라인과 원 거래를 참조한다."
+        - "배치는 재실행해도 중복 지급되지 않도록 멱등해야 한다."
+      workflow:
+        - "정산 기준일과 판매자별 정산 주기를 결정한다."
+        - "정산 대상 거래를 cursor 기반으로 수집한다."
+        - "항목별 지급액과 공제액을 계산하고 검증한다."
+        - "지급 결과와 이후 반품 공제를 별도 원장으로 남긴다."
+      technical-guidance:
+        - "settlement, settlement_item, settlement_adjustment를 분리한다."
+        - "정산 배치 실행 ID와 대상 거래 ID에 UNIQUE 제약을 둔다."
+        - "금액 합계, 건수, 누락, 중복을 자동 대사한다."
+      failure-scenarios:
+        - "배치 재실행으로 판매자에게 두 번 지급한다."
+        - "플랫폼 부담 쿠폰을 판매자에게 잘못 공제한다."
+        - "정산 이후 반품을 다음 주기에 반영하지 않는다."
+      checklist:
+        - "부담 주체별 할인과 수수료를 구분하는가?"
+        - "정산 배치가 멱등한가?"
+        - "지급 전후 자동 대사와 음수 공제가 있는가?"
+      tags: [settlement, reconciliation, seller, fee, deduction, batch]
+
+    - id: commerce-operational-integrity
+      category: operations
+      title: "운영 정합성: 이벤트, 배치, 수동 조치를 추적 가능하게 만든다"
+      summary: "장애가 없다고 가정하지 말고 중복, 지연, 순서 역전, 수동 보정을 운영 가능한 형태로 설계한다."
+      business-context: |
+        이커머스 장애는 한 번의 예외보다 조용한 데이터 불일치가 더 위험하다.
+        결제는 성공했는데 주문이 멈추거나, 재고는 예약됐는데 만료되지 않거나,
+        정산 대상 주문이 누락되는 상황을 탐지하고 복구할 수 있어야 한다.
+      invariants:
+        - "외부 요청과 이벤트 소비는 멱등하게 처리한다."
+        - "핵심 상태 변경에는 correlation ID, 원인, 행위자, 시각을 남긴다."
+        - "자동 복구와 수동 보정 모두 감사 로그를 남긴다."
+      workflow:
+        - "핵심 지표와 불일치 조건을 정의한다."
+        - "주기적인 대사 작업으로 누락과 중복을 탐지한다."
+        - "재처리 큐와 운영자 보정 절차를 제공한다."
+        - "보정 결과를 원장과 감사 로그에 남긴다."
+      technical-guidance:
+        - "Outbox 패턴으로 DB 상태 변경과 이벤트 발행 간 유실을 줄인다."
+        - "Consumer는 at-least-once 전달을 전제로 멱등하게 구현한다."
+        - "DLQ, 재처리 횟수 제한, 운영 알람, runbook을 준비한다."
+      failure-scenarios:
+        - "이벤트 중복 전달로 재고와 포인트가 두 번 변경된다."
+        - "DB 반영 후 이벤트 발행 전에 장애가 발생한다."
+        - "운영자가 직접 값을 수정해 원인과 영향 범위를 알 수 없다."
+      checklist:
+        - "핵심 이벤트 소비자가 멱등한가?"
+        - "Outbox 또는 동등한 유실 방지 장치가 있는가?"
+        - "대사 배치, DLQ, 수동 보정 감사 로그가 있는가?"
+      tags: [operations, integrity, outbox, idempotency, dlq, audit]

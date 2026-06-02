@@ -7,47 +7,49 @@
 ## 전체 구조
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                  AI 코딩 도구                         │
-│  ┌──────────────────┐   ┌──────────────────────────┐ │
-│  │   Claude Code    │   │         Cursor           │ │
-│  │   (STDIO 모드)   │   │  (Streamable HTTP 모드)  │ │
-│  └────────┬─────────┘   └─────────────┬────────────┘ │
-└───────────┼─────────────────────────────┼────────────┘
+┌──────────────────────────────────────────────────────┐
+│                   AI 코딩 도구                         │
+│  ┌──────────────────┐   ┌──────────────────────────┐  │
+│  │   Claude Code    │   │         Cursor           │  │
+│  │   (STDIO 모드)   │   │   (SSE / HTTP 모드)      │  │
+│  └────────┬─────────┘   └─────────────┬────────────┘  │
+└───────────┼─────────────────────────────┼─────────────┘
             │       MCP Protocol          │
             └──────────────┬──────────────┘
                            ▼
-┌──────────────────────────────────────────────────────┐
-│              Commerce Context Engine                 │
-│              (Spring Boot 3.5 + Spring AI MCP)       │
-│                                                      │
-│  ┌─────────────────────────────────────────────────┐ │
-│  │                  Tool Layer                     │ │
-│  │  InventoryContextTool (@Tool × 6)               │ │
-│  │  • get_inventory_context                        │ │
-│  │  • get_concurrency_strategy                     │ │
-│  │  • get_saga_pattern                             │ │
-│  │  • get_idempotency_guide                        │ │
-│  │  • get_inventory_checklist                      │ │
-│  │  • search_inventory_knowledge(keyword)          │ │
-│  └────────────────────┬────────────────────────────┘ │
-│                       │                              │
-│  ┌────────────────────▼────────────────────────────┐ │
-│  │               Service Layer                     │ │
-│  │  InventoryKnowledgeService                      │ │
-│  │  • category 필터링                               │ │
-│  │  • 키워드 검색 (title + content + tags)          │ │
-│  │  • 마크다운 포맷 변환                             │ │
-│  └────────────────────┬────────────────────────────┘ │
-│                       │                              │
-│  ┌────────────────────▼────────────────────────────┐ │
-│  │             Knowledge Layer                     │ │
-│  │  InventoryKnowledgeProperties                   │ │
-│  │  (@ConfigurationProperties)                     │ │
-│  │                                                 │ │
-│  │  ← knowledge/inventory.yml                      │ │
-│  └─────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│              Commerce Context Engine                     │
+│              (Spring Boot 3.5 + Spring AI MCP)           │
+│                                                          │
+│  ┌───────────────────────────────────────────────────┐   │
+│  │              Tool Layer  (@Tool × 31)             │   │
+│  │                                                   │   │
+│  │  InventoryContextTool    × 6  (재고)              │   │
+│  │  PaymentContextTool      × 7  (결제)              │   │
+│  │  SettlementContextTool   × 6  (정산)              │   │
+│  │  CouponContextTool       × 6  (쿠폰/프로모션)     │   │
+│  │  CommerceContextTool     × 3  (범용 이커머스)     │   │
+│  │  SpringCommerceContextTool × 3 (Java Spring)     │   │
+│  └────────────────────┬──────────────────────────────┘   │
+│                       │                                  │
+│  ┌────────────────────▼──────────────────────────────┐   │
+│  │               Service Layer                       │   │
+│  │  {Domain}KnowledgeService × 6                    │   │
+│  │  • category 기반 필터링                            │   │
+│  │  • 키워드 검색 (title + content + tags)            │   │
+│  │  • 마크다운 포맷 변환                              │   │
+│  └────────────────────┬──────────────────────────────┘   │
+│                       │                                  │
+│  ┌────────────────────▼──────────────────────────────┐   │
+│  │             Knowledge Layer                       │   │
+│  │  {Domain}KnowledgeProperties × 6                 │   │
+│  │  (@ConfigurationProperties)                      │   │
+│  │                                                   │   │
+│  │  inventory.yml      payment.yml                   │   │
+│  │  settlement.yml     coupon.yml                    │   │
+│  │  commerce.yml       spring-commerce.yml           │   │
+│  └───────────────────────────────────────────────────┘   │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -92,7 +94,7 @@ AI 코딩 도구 (Claude Code / Cursor)
   → 요청 분석: "재고" 키워드 감지
   → MCP 도구 호출 결정
         │
-        ▼ MCP Protocol (STDIO or Streamable HTTP)
+        ▼ MCP Protocol (STDIO or SSE)
         │
         ▼
 InventoryContextTool.getInventoryContext()
@@ -120,66 +122,64 @@ AI 코딩 도구
 
 ## 지식 데이터 스키마
 
+### 도메인별 표준 스키마 (inventory / payment / settlement / coupon)
+
 ```yaml
-inventory:
+{domain}:
   items:
     - id: string               # 고유 식별자 (kebab-case)
-      category: string         # lifecycle | concurrency | idempotency | consistency | checklist
+      category: string         # 도메인별 분류 (lifecycle | concurrency | checklist 등)
       title: string            # 표시 제목 (마크다운 ## 헤더로 사용됨)
       content: string          # 지식 내용 (멀티라인, 마크다운 허용)
       tags: list[string]       # 검색 키워드 (영어 소문자, 하이픈)
 ```
 
-**category 분류 기준**:
+### 범용 이커머스 정규화 스키마 (commerce / spring-commerce)
 
-| category | 의미 |
-|----------|------|
-| `lifecycle` | 재고 상태 흐름 (예약→확정→복구) |
-| `concurrency` | 동시성 제어 전략 |
-| `idempotency` | 중복 요청 방어 |
-| `consistency` | 분산 정합성 (Saga, Outbox) |
-| `checklist` | 구현 완료 후 검토 체크리스트 |
+```yaml
+commerce:
+  items:
+    - id: string
+      category: string         # catalog | pricing | order | inventory | payment | ...
+      title: string
+      summary: string          # 한 줄 요약
+      business-context: string # 유통 비즈니스 맥락
+      invariants: list         # 반드시 지켜야 할 원칙
+      workflow: list           # 권장 처리 흐름
+      technical-guidance: list # 기술 구현 참고
+      failure-scenarios: list  # 장애 및 실패 시나리오
+      checklist: list          # 검토 질문
+      tags: list[string]
+```
+
+> `spring-commerce.yml`은 `spring-guidance`, `avoid-patterns`, `checklist` 필드로 구성되어
+> Java Spring 구현 관점의 지침을 담는다.
 
 ---
 
 ## Transport 모드
 
-### Streamable HTTP (기본, Cursor 연결)
-
-```
-POST /mcp/message
-GET  /mcp/sse
-```
-
-`application.yml`:
-```yaml
-spring:
-  ai:
-    mcp:
-      server:
-        type: SYNC
-```
-
-### STDIO (Claude Code 연결)
+### STDIO (Claude Code / npx 연결)
 
 ```bash
 java -jar context-engine.jar --spring.profiles.active=stdio
 ```
 
 STDIO 모드에서는 로그가 `logs/context-engine-stdio.log` 파일로만 기록되어 stdout이 깨끗하게 유지된다.
+`npx commerce-context-mcp` 실행 시 이 모드로 자동 기동된다.
 
-### Streamable HTTP / SSE (Cursor 연결)
+### SSE / Streamable HTTP (Cursor 직접 연결)
 
 **프로토콜 흐름**:
 ```
-1. Cursor → GET /sse          (SSE 스트림 연결)
+1. Cursor → GET /sse                              (SSE 스트림 연결)
 2. Server → event:endpoint
             data:/mcp/message?sessionId={uuid}
-3. Cursor → POST /mcp/message?sessionId={uuid}  (JSON-RPC 요청)
-4. Server → SSE data: {JSON-RPC 응답}          (열린 스트림으로 응답)
+3. Cursor → POST /mcp/message?sessionId={uuid}    (JSON-RPC 요청)
+4. Server → SSE data: {JSON-RPC 응답}             (열린 스트림으로 응답)
 ```
 
-**Cursor `mcp.json` 설정**:
+**Cursor 직접 연결 설정** (`.cursor/mcp.json`):
 ```json
 {
   "mcpServers": {
@@ -191,29 +191,32 @@ STDIO 모드에서는 로그가 `logs/context-engine-stdio.log` 파일로만 기
 }
 ```
 
-> 주의: Cursor는 서버가 미리 실행 중이어야 연결 가능. `./gradlew bootRun` 또는 JAR 실행 후 Cursor 재시작.
+> `./gradlew bootRun` 으로 서버를 먼저 실행해야 한다.
 
 **검증 결과** (2026-06-02):
-- `tools/list` → 25개 도구 정상 반환
+- `tools/list` → 31개 도구 정상 반환
 - `tools/call get_inventory_checklist` → 재고 체크리스트 정상 반환
 
 ---
 
 ## 확장 계획
 
-### 4단계 — 주문/결제 도메인 추가
+### 새 도메인 추가 패턴
 
 ```
-resources/knowledge/payment.yml
-domain/payment/PaymentKnowledgeProperties.java
-service/PaymentKnowledgeService.java
-tool/PaymentContextTool.java
-config/McpToolConfig.java  ← ToolCallbackProvider 빈 추가
+1. DOMAIN_KNOWLEDGE_REFERENCE.md 에 지식 정리
+2. src/main/resources/knowledge/{domain}.yml 작성
+3. domain/{domain}/{Domain}KnowledgeProperties.java 추가
+4. config/KnowledgeConfig.java 에 @PropertySource + @EnableConfigurationProperties 추가
+5. service/{Domain}KnowledgeService.java 작성
+6. tool/{Domain}ContextTool.java 에 @Tool 메서드 추가
+7. config/McpToolConfig.java 에 toolObjects() 인자 추가
+8. CLAUDE.md 도구 목록 업데이트
 ```
 
-### 5단계 — DB 전환
+### DB 전환 계획
 
-- `InventoryKnowledgeService`의 의존성을 `InventoryKnowledgeProperties` → `InventoryKnowledgeRepository` (JPA) 로 교체
+- `{Domain}KnowledgeService`의 의존성을 `{Domain}KnowledgeProperties` → `{Domain}KnowledgeRepository` (JPA) 로 교체
 - Tool Layer, 나머지 계층 변경 없음
 - 관리자 API (지식 CRUD) 추가
 - 벡터 검색 (pgvector) 도입 시 Service의 `search()` 메서드만 교체
@@ -223,15 +226,23 @@ config/McpToolConfig.java  ← ToolCallbackProvider 빈 추가
 ## 의존성 그래프
 
 ```
-InventoryContextTool
-    └── InventoryKnowledgeService
-            └── InventoryKnowledgeProperties   ← @ConfigurationProperties
-                    └── inventory.yml           ← YAML 파일
+{Domain}ContextTool  (×6)
+    └── {Domain}KnowledgeService  (×6)
+            └── {Domain}KnowledgeProperties  ← @ConfigurationProperties
+                    └── {domain}.yml          ← YAML 파일
 
 McpToolConfig
-    └── InventoryContextTool                   ← ToolCallbackProvider 등록
+    └── allToolCallbackProvider(
+            inventoryTool, paymentTool, settlementTool,
+            couponTool, commerceTool, springCommerceTool
+        )                                      ← ToolCallbackProvider 단일 빈
 
 KnowledgeConfig
     ├── YamlPropertySourceFactory              ← YAML 파싱
-    └── InventoryKnowledgeProperties           ← @EnableConfigurationProperties
+    ├── InventoryKnowledgeProperties
+    ├── PaymentKnowledgeProperties
+    ├── SettlementKnowledgeProperties
+    ├── CouponKnowledgeProperties
+    ├── CommerceKnowledgeProperties
+    └── SpringCommerceKnowledgeProperties      ← @EnableConfigurationProperties
 ```

@@ -53,9 +53,32 @@ class InventoryContextToolTest {
     }
 
     @Test
-    void totalToolCountAtLeast13() {
-        // 도메인 추가 시 증가 — 최소 재고(6) + 결제(7) = 13개 이상
-        assertThat(toolCallbackProvider.getToolCallbacks().length).isGreaterThanOrEqualTo(13);
+    void allToolsRegistered() {
+        List<String> names = Arrays.stream(toolCallbackProvider.getToolCallbacks())
+                .map(cb -> cb.getToolDefinition().name())
+                .toList();
+
+        assertThat(names).contains(
+                "get_settlement_timing",
+                "get_settlement_deduction",
+                "get_settlement_cycle",
+                "get_settlement_integrity",
+                "get_settlement_checklist",
+                "search_settlement_knowledge",
+                "get_coupon_validation_guide",
+                "get_coupon_discount_calculation",
+                "get_coupon_issuance_guide",
+                "get_promotion_rules_guide",
+                "get_coupon_checklist",
+                "search_coupon_knowledge",
+                "get_commerce_foundation_context",
+                "get_commerce_foundation_checklist",
+                "search_commerce_knowledge",
+                "get_spring_commerce_implementation_context",
+                "get_spring_commerce_checklist",
+                "search_spring_commerce_knowledge"
+        );
+        assertThat(names).hasSize(31);
     }
 
     @Test
