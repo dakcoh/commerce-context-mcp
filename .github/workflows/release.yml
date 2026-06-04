@@ -71,6 +71,7 @@ jobs:
             console.log('npm version:', pkg.version);
           "
           curl -fIL "https://github.com/dakcoh/commerce-context-mcp/releases/download/v${{ steps.version.outputs.VERSION }}/context-engine-${{ steps.version.outputs.VERSION }}.jar"
+          npm whoami
           npm pack --dry-run
           npm publish --access public
         env:
