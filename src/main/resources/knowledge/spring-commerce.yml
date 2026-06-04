@@ -197,3 +197,245 @@ spring-commerce:
         - "동시성과 재시도 테스트가 있는가?"
         - "핵심 운영 지표와 correlationId 로그가 있는가?"
       tags: [spring, testcontainers, postgres, redis, micrometer, observability, concurrency-test]
+
+    - id: java-domain-modeling
+      category: java-core
+      title: "Java 도메인 모델링: 원시 타입 집착을 줄이고 의미 있는 타입을 둔다"
+      summary: "orderId, money, quantity, email 같은 값을 String과 long으로 흩뿌리지 말고 값 객체와 검증 규칙으로 묶는다."
+      business-context: |
+        이커머스 코드는 주문 ID, 상품 ID, 금액, 수량, 상태, 정책 버전처럼 비슷해 보이지만 의미가 다른 값을 많이 다룬다.
+        의미 없는 원시 타입만 사용하면 파라미터 순서 실수, 통화 혼동, 음수 수량 같은 오류가 컴파일 단계에서 걸리지 않는다.
+      spring-guidance:
+        - "Money, Quantity, OrderNo, SkuId 같은 값 객체를 사용해 의미와 검증을 묶는다."
+        - "불변 값은 record 또는 final 필드를 가진 클래스로 표현한다."
+        - "도메인 생성자나 정적 팩토리에서 null, 음수, 빈 문자열을 검증한다."
+        - "JPA Entity와 도메인 값 객체 사이의 매핑 책임을 명확히 둔다."
+      avoid-patterns:
+        - "모든 식별자와 상태를 String으로만 전달하지 않는다."
+        - "금액, 수량, 할인율을 검증 없이 primitive로 넘기지 않는다."
+        - "DTO 검증만 믿고 도메인 내부 검증을 생략하지 않는다."
+      checklist:
+        - "식별자, 금액, 수량에 의미 있는 타입이 있는가?"
+        - "값 객체가 불변이고 생성 시 검증되는가?"
+        - "DTO와 도메인 모델의 책임이 분리되어 있는가?"
+      tags: [java, domain-model, value-object, record, validation, type-safety]
+
+    - id: java-null-exception-boundary
+      category: java-core
+      title: "Null과 예외 경계: 실패 가능성을 타입과 계약으로 드러낸다"
+      summary: "null을 암묵적인 실패 신호로 쓰지 말고 Optional, 명시적 예외, 결과 타입으로 호출자 계약을 분명히 한다."
+      business-context: |
+        상품 없음, 쿠폰 만료, 재고 부족, 결제 불명확은 서로 다른 의미를 가진 실패다.
+        이를 null이나 RuntimeException 하나로 표현하면 AI가 후속 처리와 복구 흐름을 잘못 생성하기 쉽다.
+      spring-guidance:
+        - "조회 결과가 없을 수 있는 Repository/Service는 Optional 또는 명시적 NotFound 예외를 사용한다."
+        - "비즈니스 규칙 위반은 도메인 예외와 안정적인 errorCode로 표현한다."
+        - "외부 API 실패는 timeout, retryable, non-retryable, uncertain 상태로 분리한다."
+        - "예외 변환은 ControllerAdvice 또는 adapter boundary에서 수행한다."
+      avoid-patterns:
+        - "null 반환 후 호출자에게 암묵적으로 판단을 맡기지 않는다."
+        - "모든 실패를 RuntimeException 또는 500 응답으로 처리하지 않는다."
+        - "외부 API 타임아웃을 단순 실패로 확정하지 않는다."
+      checklist:
+        - "없음, 규칙 위반, 외부 장애가 다른 타입/코드로 표현되는가?"
+        - "null 반환 정책이 명확하거나 제거됐는가?"
+        - "예외가 계층 경계에서 일관되게 변환되는가?"
+      tags: [java, "null", optional, exception, error-code, boundary]
+
+    - id: java-collections-streams
+      category: java-core
+      title: "컬렉션과 Stream: 대량 데이터와 부작용을 구분한다"
+      summary: "Stream은 메모리 안의 컬렉션 변환에 적합하며 DB 대량 처리나 외부 호출 반복을 숨기는 도구가 아니다."
+      business-context: |
+        주문, 정산, 상품 인덱싱은 데이터가 빠르게 커진다.
+        작은 목록에서 동작하던 stream().map() 코드가 전체 주문 테이블이나 외부 API 호출과 결합되면 장애를 만들 수 있다.
+      spring-guidance:
+        - "대량 DB 처리는 cursor, slice, chunk 단위로 나눈다."
+        - "Stream 내부에서 외부 API 호출이나 Repository 호출을 반복하지 않는다."
+        - "parallelStream은 트랜잭션, EntityManager, 외부 API rate limit과 충돌할 수 있으므로 신중히 사용한다."
+        - "변경 가능한 컬렉션을 공유할 때는 동시성 경계를 명시한다."
+      avoid-patterns:
+        - "findAll().stream()으로 대량 배치를 처리하지 않는다."
+        - "stream map 안에서 N+1 Repository 호출을 만들지 않는다."
+        - "parallelStream으로 결제, 재고, 정산 같은 상태 변경을 병렬 처리하지 않는다."
+      checklist:
+        - "대량 처리가 cursor 또는 chunk 기반인가?"
+        - "Stream 내부에 숨은 DB/API 반복 호출이 없는가?"
+        - "병렬 처리 시 트랜잭션과 rate limit 경계가 명확한가?"
+      tags: [java, collection, stream, batch, cursor, n-plus-one, parallel]
+
+    - id: spring-security-authz
+      category: security
+      title: "Spring Security 권한: 인증, 인가, 소유권 검증을 분리한다"
+      summary: "로그인 여부만 확인하지 말고 사용자, 판매자, 운영자 권한과 리소스 소유권을 함께 검증한다."
+      business-context: |
+        이커머스에는 고객, 판매자, CS 운영자, 관리자, 배치 시스템처럼 서로 다른 행위자가 있다.
+        주문 조회, 환불, 정산, 상품 수정은 권한과 소유권이 잘못되면 개인정보 노출이나 금전 피해로 이어진다.
+      spring-guidance:
+        - "인증(Authentication), 역할 기반 인가(Role), 리소스 소유권 검증을 분리한다."
+        - "Controller 진입 전에는 coarse-grained 권한을 확인하고 Service에서 도메인 소유권을 검증한다."
+        - "관리자 기능은 조회 권한과 수정 권한을 나누고 사유 입력과 감사 로그를 요구한다."
+        - "JWT claim을 그대로 신뢰하지 말고 필요한 경우 서버 원장과 대조한다."
+      avoid-patterns:
+        - "isAuthenticated()만으로 주문 상세 조회를 허용하지 않는다."
+        - "판매자 ID를 요청 파라미터로 받아 그대로 신뢰하지 않는다."
+        - "관리자 권한 하나로 모든 조회와 수정을 허용하지 않는다."
+      checklist:
+        - "사용자 역할과 리소스 소유권 검증이 모두 있는가?"
+        - "판매자/운영자 기능의 권한 경계가 분리되어 있는가?"
+        - "민감 조작에 감사 로그와 사유가 남는가?"
+      tags: [spring, security, authentication, authorization, ownership, audit, jwt]
+
+    - id: spring-configuration-secrets
+      category: configuration
+      title: "설정과 Secret: 환경별 설정과 민감 값을 코드에서 분리한다"
+      summary: "PG 키, JWT secret, 외부 API endpoint, feature flag는 환경별 설정으로 관리하고 소스 코드와 로그에 노출하지 않는다."
+      business-context: |
+        이커머스는 PG, 택배사, 알림, 검색, 외부 채널처럼 많은 외부 시스템과 연결된다.
+        운영과 개발 설정이 섞이면 실제 결제 호출, 잘못된 웹훅 검증, 개인정보 유출 같은 사고가 발생할 수 있다.
+      spring-guidance:
+        - "@ConfigurationProperties로 설정을 타입 안전하게 바인딩하고 검증한다."
+        - "dev, local, staging, prod profile을 분리하고 기본값이 운영 사고를 만들지 않게 한다."
+        - "Secret은 환경 변수, vault, secret manager로 주입한다."
+        - "설정 값 출력 로그에서 key, token, secret, password를 마스킹한다."
+      avoid-patterns:
+        - "PG secret이나 JWT secret을 application.yml에 평문 커밋하지 않는다."
+        - "운영 profile 기본값을 local endpoint로 두지 않는다."
+        - "외부 API 키를 예외 메시지나 디버그 로그에 출력하지 않는다."
+      checklist:
+        - "외부 연동 설정이 @ConfigurationProperties로 검증되는가?"
+        - "운영 Secret이 소스 코드에 없고 로그에서 마스킹되는가?"
+        - "환경별 profile과 feature flag 기본값이 안전한가?"
+      tags: [spring, configuration, profile, secret, vault, properties, masking]
+
+    - id: spring-schema-migration
+      category: persistence
+      title: "스키마 마이그레이션: 주문 원장은 무중단 변경을 전제로 설계한다"
+      summary: "Flyway/Liquibase로 스키마 변경을 버전 관리하고, 대형 테이블 변경은 expand-migrate-contract 순서로 진행한다."
+      business-context: |
+        주문, 결제, 정산 테이블은 서비스가 커질수록 중단 없이 변경해야 한다.
+        컬럼 추가, 인덱스 생성, 상태 값 변경을 단순 DDL로 처리하면 배포 중 락, 데이터 불일치, 롤백 불가 문제가 생긴다.
+      spring-guidance:
+        - "Flyway 또는 Liquibase로 스키마 변경 이력을 코드와 함께 관리한다."
+        - "nullable 컬럼 추가, 백필, 코드 전환, not null 제약 추가를 단계적으로 수행한다."
+        - "대형 테이블 인덱스는 DB별 online/concurrent 옵션을 검토한다."
+        - "enum 상태 변경은 이전 버전 코드와의 호환성을 고려한다."
+      avoid-patterns:
+        - "운영 DB에 수동 DDL을 적용하고 이력을 남기지 않는 방식을 피한다."
+        - "대형 주문 테이블에 default not null 컬럼을 한 번에 추가하지 않는다."
+        - "배포 전후 코드가 함께 읽는 상태 값을 갑자기 삭제하지 않는다."
+      checklist:
+        - "스키마 변경이 Flyway/Liquibase로 버전 관리되는가?"
+        - "대형 테이블 변경에 expand-migrate-contract 계획이 있는가?"
+        - "롤백 또는 forward-fix 전략이 명확한가?"
+      tags: [spring, database, migration, flyway, liquibase, zero-downtime, schema]
+
+    - id: spring-api-pagination-idempotent-post
+      category: api
+      title: "REST API 설계: 페이지네이션과 멱등 POST 계약을 명확히 한다"
+      summary: "목록 API는 cursor 기반 탐색을 우선하고, 주문 생성 같은 POST는 idempotency key로 중복 실행을 방어한다."
+      business-context: |
+        상품, 주문, 정산 목록은 데이터가 빠르게 커지고 정렬 기준도 자주 바뀐다.
+        주문 생성이나 결제 요청은 사용자의 재클릭, 네트워크 재시도, 클라이언트 타임아웃으로 같은 요청이 여러 번 도착할 수 있다.
+      spring-guidance:
+        - "대량 목록 API는 offset/limit보다 cursor, sort key, hasNext를 포함한 응답을 우선한다."
+        - "정렬 기준은 안정적인 unique tie-breaker를 포함한다."
+        - "주문 생성, 결제 요청, 쿠폰 사용 같은 POST에는 idempotency key를 받는다."
+        - "같은 idempotency key 요청에는 최초 처리 결과 또는 동일한 오류 계약을 반환한다."
+      avoid-patterns:
+        - "page=99999 같은 offset 페이지로 대형 테이블을 깊게 스캔하지 않는다."
+        - "createdAt 단독 정렬처럼 중복 값에서 순서가 흔들리는 cursor를 사용하지 않는다."
+        - "사용자 재시도마다 주문을 새로 만들지 않는다."
+      checklist:
+        - "목록 API에 안정적인 cursor와 tie-breaker가 있는가?"
+        - "상태 변경 POST가 idempotency key를 받는가?"
+        - "중복 요청의 응답 계약이 정의되어 있는가?"
+      tags: [spring, rest-api, cursor, pagination, idempotency, post]
+
+    - id: spring-database-index-isolation
+      category: persistence
+      title: "DB 인덱스와 격리 수준: 조회 패턴과 정합성 위험을 함께 본다"
+      summary: "인덱스는 where/order by/join 패턴에 맞춰 설계하고, 격리 수준은 재고·정산 불변식을 기준으로 선택한다."
+      business-context: |
+        이커머스의 주문, 결제, 정산 테이블은 쓰기량과 조회량이 모두 많다.
+        잘못된 인덱스는 배치 지연을 만들고, 격리 수준 오해는 중복 처리와 정산 누락을 만든다.
+      spring-guidance:
+        - "Repository 메서드의 where 조건, 정렬, join 대상에 맞춰 복합 인덱스를 설계한다."
+        - "cursor pagination의 sort key와 index 순서를 일치시킨다."
+        - "재고 차감, 쿠폰 발급, 정산 대상 확정에는 격리 수준과 락 범위를 명시한다."
+        - "실행 계획과 slow query를 운영 지표로 관측한다."
+      avoid-patterns:
+        - "인덱스 없이 상태 + 기간 조건으로 대형 주문 테이블을 스캔하지 않는다."
+        - "트랜잭션 격리 수준 기본값만 믿고 phantom read 가능성을 무시하지 않는다."
+        - "복합 인덱스 컬럼 순서를 조회 조건과 다르게 둔다."
+      checklist:
+        - "핵심 조회마다 실행 계획을 확인했는가?"
+        - "cursor 정렬과 복합 인덱스 순서가 맞는가?"
+        - "동시 변경이 있는 업무의 격리 수준과 락 범위가 문서화됐는가?"
+      tags: [spring, database, index, isolation, lock, slow-query, cursor]
+
+    - id: java-concurrency-executor-completablefuture
+      category: java-core
+      title: "Java 17 비동기 처리: Executor와 CompletableFuture 경계를 분명히 한다"
+      summary: "비동기 코드는 전용 Executor, timeout, 예외 처리, 컨텍스트 전파를 명시하고 트랜잭션 경계를 넘기지 않는다."
+      business-context: |
+        주문 후 알림, 외부 채널 동기화, 검색 인덱싱처럼 느린 후속 작업을 비동기로 처리할 수 있다.
+        하지만 무제한 thread pool이나 트랜잭션 컨텍스트 착각은 장애 시 더 큰 지연과 데이터 불일치를 만든다.
+      spring-guidance:
+        - "@Async나 CompletableFuture에는 업무별 전용 Executor와 큐 크기 제한을 설정한다."
+        - "비동기 작업에는 timeout, retry, fallback, 실패 기록을 둔다."
+        - "DB 트랜잭션 커밋 전 상태를 비동기 작업이 읽는 구조를 피한다."
+        - "correlationId 같은 추적 컨텍스트를 명시적으로 전달한다."
+      avoid-patterns:
+        - "ForkJoinPool.commonPool에 결제, 재고, 외부 API 작업을 무분별하게 태우지 않는다."
+        - "CompletableFuture 예외를 join 시점까지 방치하지 않는다."
+        - "@Transactional 메서드 내부에서 비동기 작업이 같은 영속성 컨텍스트를 쓴다고 가정하지 않는다."
+      checklist:
+        - "비동기 업무별 Executor와 큐 제한이 있는가?"
+        - "timeout, 예외 처리, 실패 재처리 경로가 있는가?"
+        - "트랜잭션 커밋 이후 실행되어야 하는 작업이 분리되어 있는가?"
+      tags: [java, java17, async, executor, completablefuture, timeout, correlation-id]
+
+    - id: spring-resilience-retry-timeout
+      category: integration
+      title: "외부 연동 회복성: timeout, retry, circuit breaker를 업무별로 다르게 둔다"
+      summary: "PG, 택배, 알림, 검색, 외부 채널 API는 같은 재시도 정책을 쓰지 말고 업무 영향에 따라 실패 처리를 분리한다."
+      business-context: |
+        이커머스는 외부 시스템 장애를 피할 수 없다.
+        결제 승인은 신중한 대사가 필요하고, 알림 발송은 지연 허용이 크며, 배송 추적은 재처리 가능한 데이터다.
+      spring-guidance:
+        - "WebClient나 RestClient 호출에 connect/read timeout을 명시한다."
+        - "재시도 가능한 오류와 재시도하면 안 되는 오류를 코드별로 분리한다."
+        - "Resilience4j 같은 circuit breaker, bulkhead, retry를 업무별로 설정한다."
+        - "외부 호출 결과가 불명확하면 UNCERTAIN 상태와 대사 작업으로 넘긴다."
+      avoid-patterns:
+        - "무제한 재시도로 PG나 채널 API 장애를 증폭시키지 않는다."
+        - "timeout 없는 HTTP client를 운영에 사용하지 않는다."
+        - "결제 타임아웃을 단순 실패로 확정하지 않는다."
+      checklist:
+        - "외부 API별 timeout과 retry 정책이 정의되어 있는가?"
+        - "불명확 결과를 대사하는 상태와 배치가 있는가?"
+        - "circuit breaker와 bulkhead로 장애 전파를 제한하는가?"
+      tags: [spring, integration, resilience4j, timeout, retry, circuit-breaker, uncertain]
+
+    - id: spring-deployment-health-rollout
+      category: operations
+      title: "배포와 헬스체크: readiness 기준과 롤백 조건을 명확히 한다"
+      summary: "애플리케이션 기동 성공만 보지 말고 DB, Redis, 외부 설정, 배치 중복, 핵심 API readiness를 검증한다."
+      business-context: |
+        이커머스 배포는 주문과 결제 흐름을 건드릴 수 있다.
+        새 버전이 기동은 됐지만 DB 마이그레이션, 외부 API 설정, 캐시 연결이 틀리면 고객 주문이 바로 실패한다.
+      spring-guidance:
+        - "Spring Boot Actuator health에 liveness와 readiness를 분리한다."
+        - "readiness에는 DB 연결, migration 상태, Redis 필요 기능, 핵심 설정 검증을 포함한다."
+        - "blue-green 또는 rolling 배포 시 이전 버전과 새 버전의 스키마 호환성을 확인한다."
+        - "배포 후 주문 생성, 결제 웹훅, 재고 예약 같은 smoke test를 자동화한다."
+      avoid-patterns:
+        - "프로세스 기동만으로 트래픽을 받게 하지 않는다."
+        - "스키마 변경과 애플리케이션 변경을 호환성 없이 동시에 적용하지 않는다."
+        - "배포 후 핵심 도메인 지표 악화를 롤백 조건에 포함하지 않는다."
+      checklist:
+        - "liveness와 readiness가 분리되어 있는가?"
+        - "배포 전후 스키마 호환성과 smoke test가 있는가?"
+        - "주문 실패율, 결제 불명확 수 같은 롤백 지표가 있는가?"
+      tags: [spring, deployment, actuator, readiness, health-check, rollback, smoke-test]

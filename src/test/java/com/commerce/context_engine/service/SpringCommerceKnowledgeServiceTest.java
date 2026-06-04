@@ -17,8 +17,8 @@ class SpringCommerceKnowledgeServiceTest {
     SpringCommerceKnowledgeProperties properties;
 
     @Test
-    void containsNineNormalizedSpringKnowledgeItems() {
-        assertThat(properties.getItems()).hasSize(9);
+    void containsTwentyNormalizedSpringKnowledgeItems() {
+        assertThat(properties.getItems()).hasSize(20);
         assertThat(properties.getItems()).allSatisfy(item -> {
             assertThat(item.getId()).isNotBlank();
             assertThat(item.getCategory()).isNotBlank();
@@ -39,7 +39,9 @@ class SpringCommerceKnowledgeServiceTest {
                 .contains("@Transactional")
                 .contains("JPA")
                 .contains("Outbox")
-                .contains("Testcontainers");
+                .contains("Testcontainers")
+                .contains("CompletableFuture")
+                .contains("readiness");
     }
 
     @Test
@@ -47,6 +49,8 @@ class SpringCommerceKnowledgeServiceTest {
         assertThat(service.getChecklist())
                 .contains("spring-commerce-transaction-boundary")
                 .contains("spring-commerce-testing-observability")
+                .contains("java-domain-modeling")
+                .contains("spring-api-pagination-idempotent-post")
                 .contains("- [ ]");
     }
 
@@ -74,5 +78,29 @@ class SpringCommerceKnowledgeServiceTest {
     @Test
     void search_unknownKeyword_returnsNotFoundMessage() {
         assertThat(service.search("존재하지않는xyz")).contains("찾을 수 없습니다");
+    }
+
+    @Test
+    void search_byOptional_returnsNullBoundaryGuide() {
+        assertThat(service.search("Optional"))
+                .contains("java-null-exception-boundary")
+                .contains("예외 경계");
+    }
+
+    @Test
+    void search_byCursor_returnsApiAndDatabaseGuidance() {
+        assertThat(service.search("cursor"))
+                .contains("spring-api-pagination-idempotent-post")
+                .contains("spring-database-index-isolation");
+    }
+
+    @Test
+    void search_blankKeyword_returnsKeywordRequiredMessage() {
+        assertThat(service.search("   ")).contains("search keyword");
+    }
+
+    @Test
+    void search_nullKeyword_returnsKeywordRequiredMessage() {
+        assertThat(service.search(null)).contains("search keyword");
     }
 }

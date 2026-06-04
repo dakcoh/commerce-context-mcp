@@ -17,8 +17,8 @@ class CommerceKnowledgeServiceTest {
     CommerceKnowledgeProperties properties;
 
     @Test
-    void containsTenNormalizedKnowledgeItems() {
-        assertThat(properties.getItems()).hasSize(10);
+    void containsTwentyNormalizedKnowledgeItems() {
+        assertThat(properties.getItems()).hasSize(20);
         assertThat(properties.getItems()).allSatisfy(item -> {
             assertThat(item.getId()).isNotBlank();
             assertThat(item.getCategory()).isNotBlank();
@@ -39,7 +39,10 @@ class CommerceKnowledgeServiceTest {
         assertThat(service.getFoundationContext())
                 .contains("knowledgeId")
                 .contains("commerce-catalog-model")
-                .contains("commerce-operational-integrity");
+                .contains("commerce-operational-integrity")
+                .contains("commerce-security-privacy")
+                .contains("commerce-loyalty-point-ledger")
+                .contains("commerce-ops-slo-incident");
     }
 
     @Test
@@ -47,6 +50,8 @@ class CommerceKnowledgeServiceTest {
         assertThat(service.getChecklist())
                 .contains("commerce-catalog-model")
                 .contains("commerce-settlement-reconciliation")
+                .contains("commerce-cart-checkout")
+                .contains("commerce-subscription-recurring-order")
                 .contains("- [ ]");
     }
 
@@ -71,7 +76,24 @@ class CommerceKnowledgeServiceTest {
     }
 
     @Test
+    void search_byPoint_returnsLoyaltyKnowledge() {
+        assertThat(service.search("포인트"))
+                .contains("commerce-loyalty-point-ledger")
+                .contains("원장");
+    }
+
+    @Test
     void search_unknownKeyword_returnsNotFoundMessage() {
         assertThat(service.search("존재하지않는xyz")).contains("찾을 수 없습니다");
+    }
+
+    @Test
+    void search_blankKeyword_returnsKeywordRequiredMessage() {
+        assertThat(service.search("   ")).contains("search keyword");
+    }
+
+    @Test
+    void search_nullKeyword_returnsKeywordRequiredMessage() {
+        assertThat(service.search(null)).contains("search keyword");
     }
 }

@@ -6,9 +6,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.containsNormalized;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.hasSearchKeyword;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.missingKeywordMessage;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.normalize;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.safeList;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.safeStream;
 
 @Service
 @RequiredArgsConstructor
@@ -17,21 +23,24 @@ public class CommerceKnowledgeService {
     private final CommerceKnowledgeProperties properties;
 
     public String getFoundationContext() {
-        return format(properties.getItems());
+        return format(safeList(properties.getItems()));
     }
 
     public String getChecklist() {
-        return properties.getItems().stream()
+        return safeList(properties.getItems()).stream()
                 .map(this::formatChecklist)
                 .collect(Collectors.joining("\n\n"));
     }
 
     public String search(String keyword) {
+        if (!hasSearchKeyword(keyword)) {
+            return missingKeywordMessage();
+        }
+
         String normalizedKeyword = normalize(keyword);
-        List<Item> matched = properties.getItems().stream()
+        List<Item> matched = safeList(properties.getItems()).stream()
                 .filter(item -> searchableValues(item)
-                        .map(this::normalize)
-                        .anyMatch(value -> value.contains(normalizedKeyword)))
+                        .anyMatch(value -> containsNormalized(value, normalizedKeyword)))
                 .toList();
 
         if (matched.isEmpty()) {
@@ -46,11 +55,11 @@ public class CommerceKnowledgeService {
                         item.getBusinessContext()),
                 Stream.of(item.getInvariants(), item.getWorkflow(), item.getTechnicalGuidance(),
                                 item.getFailureScenarios(), item.getChecklist(), item.getTags())
-                        .flatMap(List::stream));
+                        .flatMap(KnowledgeSearchSupport::safeStream));
     }
 
     private String format(List<Item> items) {
-        return items.stream()
+        return safeList(items).stream()
                 .map(this::format)
                 .collect(Collectors.joining("\n\n---\n\n"));
     }
@@ -84,7 +93,7 @@ public class CommerceKnowledgeService {
                 item.getId(),
                 item.getCategory(),
                 item.getSummary(),
-                item.getBusinessContext().trim(),
+                trim(item.getBusinessContext()),
                 bulletList(item.getInvariants()),
                 numberedList(item.getWorkflow()),
                 bulletList(item.getTechnicalGuidance()),
@@ -100,20 +109,21 @@ public class CommerceKnowledgeService {
     }
 
     private String bulletList(List<String> items) {
-        return items.stream().map(item -> "- " + item).collect(Collectors.joining("\n"));
+        return safeStream(items).map(item -> "- " + item).collect(Collectors.joining("\n"));
     }
 
     private String numberedList(List<String> items) {
-        return java.util.stream.IntStream.range(0, items.size())
-                .mapToObj(index -> (index + 1) + ". " + items.get(index))
+        List<String> safeItems = safeList(items);
+        return java.util.stream.IntStream.range(0, safeItems.size())
+                .mapToObj(index -> (index + 1) + ". " + safeItems.get(index))
                 .collect(Collectors.joining("\n"));
     }
 
     private String checkboxList(List<String> items) {
-        return items.stream().map(item -> "- [ ] " + item).collect(Collectors.joining("\n"));
+        return safeStream(items).map(item -> "- [ ] " + item).collect(Collectors.joining("\n"));
     }
 
-    private String normalize(String value) {
-        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    private String trim(String value) {
+        return value == null ? "" : value.trim();
     }
 }

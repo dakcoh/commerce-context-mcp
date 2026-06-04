@@ -64,4 +64,14 @@ class InventoryKnowledgeServiceTest {
         String result = service.search("존재하지않는키워드xyz");
         assertThat(result).contains("찾을 수 없습니다");
     }
+
+    @Test
+    void search_blankKeyword_returnsKeywordRequiredMessage() {
+        assertThat(service.search("   ")).contains("search keyword");
+    }
+
+    @Test
+    void search_nullKeyword_returnsKeywordRequiredMessage() {
+        assertThat(service.search(null)).contains("search keyword");
+    }
 }

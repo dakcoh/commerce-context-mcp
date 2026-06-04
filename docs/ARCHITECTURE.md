@@ -140,7 +140,7 @@ AI 코딩 도구
 commerce:
   items:
     - id: string
-      category: string         # catalog | pricing | order | inventory | payment | ...
+      category: string         # catalog | pricing | order | inventory | payment | customer | checkout | ...
       title: string
       summary: string          # 한 줄 요약
       business-context: string # 유통 비즈니스 맥락
@@ -153,7 +153,8 @@ commerce:
 ```
 
 > `spring-commerce.yml`은 `spring-guidance`, `avoid-patterns`, `checklist` 필드로 구성되어
-> Java Spring 구현 관점의 지침을 담는다.
+> Java/Spring 구현 관점의 지침을 담는다. Spring 세부 구현뿐 아니라 Java 값 객체, null/예외,
+> 컬렉션/Stream, 설정, 보안, 마이그레이션 기준도 포함한다.
 
 ---
 
@@ -201,17 +202,26 @@ STDIO 모드에서는 로그가 `logs/context-engine-stdio.log` 파일로만 기
 
 ## 확장 계획
 
+### Core API 분리 계획
+
+현재 서비스는 MCP 응답에 맞춘 Markdown 문자열을 반환한다.
+MCP 밖에서도 Java 라이브러리처럼 재사용하려면 `KnowledgeEntry`, `KnowledgeQuery`,
+`KnowledgeSearchResult`, `KnowledgeRepository`, `KnowledgeRenderer` 같은 구조화 API가 필요하다.
+
+상세 계획은 `docs/CORE_MODULE_PLAN.md`를 따른다.
+일주일 내 배포 목표를 고려해 초기에는 Gradle 멀티 모듈보다 패키지 경계를 먼저 만든다.
+
 ### 새 도메인 추가 패턴
 
 ```
-1. DOMAIN_KNOWLEDGE_REFERENCE.md 에 지식 정리
+1. docs/DOMAIN_KNOWLEDGE_REFERENCE.md 에 지식 정리
 2. src/main/resources/knowledge/{domain}.yml 작성
 3. domain/{domain}/{Domain}KnowledgeProperties.java 추가
 4. config/KnowledgeConfig.java 에 @PropertySource + @EnableConfigurationProperties 추가
 5. service/{Domain}KnowledgeService.java 작성
 6. tool/{Domain}ContextTool.java 에 @Tool 메서드 추가
 7. config/McpToolConfig.java 에 toolObjects() 인자 추가
-8. CLAUDE.md 도구 목록 업데이트
+8. docs/CLAUDE.md 도구 목록 업데이트
 ```
 
 ### DB 전환 계획

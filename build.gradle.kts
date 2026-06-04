@@ -16,7 +16,7 @@ else
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+		languageVersion = JavaLanguageVersion.of(17)
 	}
 }
 
@@ -48,4 +48,10 @@ dependencyManagement {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+tasks.register("validateKnowledge") {
+	group = "verification"
+	description = "Validates knowledge YAML binding, schema, categories, and quality rules."
+	dependsOn("test")
 }

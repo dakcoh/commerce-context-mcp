@@ -6,9 +6,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.containsNormalized;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.hasSearchKeyword;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.missingKeywordMessage;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.normalize;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.safeList;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.safeStream;
 
 @Service
 @RequiredArgsConstructor
@@ -17,21 +23,24 @@ public class SpringCommerceKnowledgeService {
     private final SpringCommerceKnowledgeProperties properties;
 
     public String getSpringImplementationContext() {
-        return format(properties.getItems());
+        return format(safeList(properties.getItems()));
     }
 
     public String getChecklist() {
-        return properties.getItems().stream()
+        return safeList(properties.getItems()).stream()
                 .map(this::formatChecklist)
                 .collect(Collectors.joining("\n\n"));
     }
 
     public String search(String keyword) {
+        if (!hasSearchKeyword(keyword)) {
+            return missingKeywordMessage();
+        }
+
         String normalizedKeyword = normalize(keyword);
-        List<Item> matched = properties.getItems().stream()
+        List<Item> matched = safeList(properties.getItems()).stream()
                 .filter(item -> searchableValues(item)
-                        .map(this::normalize)
-                        .anyMatch(value -> value.contains(normalizedKeyword)))
+                        .anyMatch(value -> containsNormalized(value, normalizedKeyword)))
                 .toList();
 
         if (matched.isEmpty()) {
@@ -45,11 +54,11 @@ public class SpringCommerceKnowledgeService {
                 Stream.of(item.getId(), item.getCategory(), item.getTitle(), item.getSummary(),
                         item.getBusinessContext()),
                 Stream.of(item.getSpringGuidance(), item.getAvoidPatterns(), item.getChecklist(), item.getTags())
-                        .flatMap(List::stream));
+                        .flatMap(KnowledgeSearchSupport::safeStream));
     }
 
     private String format(List<Item> items) {
-        return items.stream().map(this::format).collect(Collectors.joining("\n\n---\n\n"));
+        return safeList(items).stream().map(this::format).collect(Collectors.joining("\n\n---\n\n"));
     }
 
     private String format(Item item) {
@@ -72,7 +81,7 @@ public class SpringCommerceKnowledgeService {
                 %s
                 """.formatted(
                 item.getTitle(), item.getId(), item.getCategory(), item.getSummary(),
-                item.getBusinessContext().trim(), bulletList(item.getSpringGuidance()),
+                trim(item.getBusinessContext()), bulletList(item.getSpringGuidance()),
                 bulletList(item.getAvoidPatterns()), checkboxList(item.getChecklist()))
                 .trim();
     }
@@ -84,14 +93,14 @@ public class SpringCommerceKnowledgeService {
     }
 
     private String bulletList(List<String> items) {
-        return items.stream().map(item -> "- " + item).collect(Collectors.joining("\n"));
+        return safeStream(items).map(item -> "- " + item).collect(Collectors.joining("\n"));
     }
 
     private String checkboxList(List<String> items) {
-        return items.stream().map(item -> "- [ ] " + item).collect(Collectors.joining("\n"));
+        return safeStream(items).map(item -> "- [ ] " + item).collect(Collectors.joining("\n"));
     }
 
-    private String normalize(String value) {
-        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    private String trim(String value) {
+        return value == null ? "" : value.trim();
     }
 }

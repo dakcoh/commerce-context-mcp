@@ -296,7 +296,7 @@ DB: userId + couponId UNIQUE 제약  → 최종 안전망
 | `failure-scenarios` | 누락 시 발생하는 장애와 데이터 불일치 |
 | `checklist` | 코드 리뷰와 출시 전 검증 질문 |
 
-### 5-2. 기본 지식 10개
+### 5-2. 기본 지식 20개
 
 | category | 지식 ID | 핵심 범위 |
 |----------|---------|----------|
@@ -310,6 +310,16 @@ DB: userId + couponId UNIQUE 제약  → 최종 안전망
 | `distribution` | `commerce-channel-seller-distribution` | 유통 채널, 판매자, 외부 동기화 |
 | `settlement` | `commerce-settlement-reconciliation` | 판매자 정산과 자동 대사 |
 | `operations` | `commerce-operational-integrity` | Outbox, DLQ, 감사 로그, 보정 |
+| `customer` | `commerce-customer-identity` | 회원, 비회원, 주문자, 수령자 식별자 분리 |
+| `checkout` | `commerce-cart-checkout` | 장바구니, 체크아웃 견적, 주문 확정 분리 |
+| `search` | `commerce-search-discovery` | 검색 인덱스와 상품 원장 분리 |
+| `claim` | `commerce-claim-cs` | 취소, 교환, 반품, 환불 클레임 흐름 |
+| `security` | `commerce-security-privacy` | 개인정보, 권한 경계, 감사 로그 |
+| `loyalty` | `commerce-loyalty-point-ledger` | 포인트 원장, 예약, 만료, 환불 |
+| `membership` | `commerce-membership-tier-benefits` | 멤버십 등급 산정과 혜택 스냅샷 |
+| `review` | `commerce-review-ugc-moderation` | 리뷰 작성 권한, 노출 상태, 신고 처리 |
+| `subscription` | `commerce-subscription-recurring-order` | 구독 계약, 회차 주문, 반복 결제 |
+| `operations` | `commerce-ops-slo-incident` | SLO, 알림, 장애 runbook, 보정 |
 
 이 스키마는 YAML 검증 후 DB 지식 저장소의 초기 모델로 사용한다.
 
@@ -317,7 +327,7 @@ DB: userId + couponId UNIQUE 제약  → 최종 안전망
 
 ## 6. Java Spring 이커머스 구현 지식
 
-유통 도메인 원칙과 별도로, Java 21 + Spring Boot 기반 웹 백엔드에서 반복 사용하는
+유통 도메인 원칙과 별도로, Java 17+ + Spring Boot 기반 웹 백엔드에서 반복 사용하는
 구현 기준을 `src/main/resources/knowledge/spring-commerce.yml`에 정규화한다.
 
 | category | 지식 ID | 핵심 범위 |
@@ -331,6 +341,17 @@ DB: userId + couponId UNIQUE 제약  → 최종 안전망
 | `cache` | `spring-commerce-cache-boundary` | Redis 캐시와 DB 원장 분리 |
 | `batch` | `spring-commerce-scheduler-batch` | 스케줄러 중복 실행과 재시작 |
 | `quality` | `spring-commerce-testing-observability` | Testcontainers, Micrometer, 로그 |
+| `java-core` | `java-domain-modeling` | 값 객체, 타입 안정성, 도메인 검증 |
+| `java-core` | `java-null-exception-boundary` | null, Optional, 예외 경계 |
+| `java-core` | `java-collections-streams` | 컬렉션, Stream, 대량 처리 주의점 |
+| `security` | `spring-security-authz` | 인증, 인가, 소유권 검증 |
+| `configuration` | `spring-configuration-secrets` | 환경별 설정과 Secret 관리 |
+| `persistence` | `spring-schema-migration` | Flyway/Liquibase, 무중단 스키마 변경 |
+| `api` | `spring-api-pagination-idempotent-post` | cursor pagination, idempotent POST |
+| `persistence` | `spring-database-index-isolation` | 인덱스, 실행 계획, 격리 수준 |
+| `java-core` | `java-concurrency-executor-completablefuture` | Executor, CompletableFuture, 비동기 경계 |
+| `integration` | `spring-resilience-retry-timeout` | timeout, retry, circuit breaker |
+| `operations` | `spring-deployment-health-rollout` | readiness, smoke test, 롤백 지표 |
 
 ---
 
@@ -339,12 +360,52 @@ DB: userId + couponId UNIQUE 제약  → 최종 안전망
 새로운 도메인 지식을 추가할 때는 아래 순서를 따른다.
 
 ```
-1. 이 문서(DOMAIN_KNOWLEDGE_REFERENCE.md)에 먼저 내용 정리
+1. 이 문서(docs/DOMAIN_KNOWLEDGE_REFERENCE.md)에 먼저 내용 정리
 2. src/main/resources/knowledge/{domain}.yml에 데이터 추가
 3. {Domain}KnowledgeService.java에 조회 로직 추가
 4. {Domain}ContextTool.java에 @Tool 메서드 추가
-5. README.md 로드맵 및 Tool 목록 업데이트
+5. docs/CLAUDE.md와 docs/ARCHITECTURE.md의 도구 목록 및 구조 설명 업데이트
 ```
+
+## 현재 지식 현황
+
+| 파일 | 범위 | 항목 수 |
+|------|------|--------:|
+| `inventory.yml` | 재고 예약, 동시성, 멱등성, Saga | 7 |
+| `payment.yml` | 웹훅, 중복 결제, 망취소, 환불, 멱등성 | 6 |
+| `settlement.yml` | 정산 시점, 공제, 배치, 정합성 | 5 |
+| `coupon.yml` | 쿠폰 검증, 할인 계산, 발급, 프로모션 | 5 |
+| `commerce.yml` | 범용 이커머스 도메인 설계 | 20 |
+| `spring-commerce.yml` | Java/Spring 구현 지식 | 20 |
+
+## YAML 스키마 검증
+
+지식 파일을 수정한 뒤에는 아래 명령을 실행한다.
+
+```powershell
+.\gradlew.bat validateKnowledge --no-daemon
+```
+
+검증 항목:
+- 전체 지식 ID 전역 중복 금지
+- `id`는 소문자 영문, 숫자, 하이픈 형식
+- 도메인별 허용 category만 사용
+- 필수 본문 필드와 리스트 필드 누락 금지
+- 태그 비어 있음과 태그 중복 금지
+
+## 다음 보강 후보
+
+- 추천/개인화: 추천 후보 생성, 랭킹, 필터링, 노출 이력, A/B 테스트
+- B2B/도매: 사업자 가격, 견적, 승인, 세금계산서, 거래처별 한도
+- 글로벌 커머스: 다국어, 다통화, 관세, 국가별 배송/반품 정책
+- 관리자/운영 도구: 권한 분리, 수동 보정 워크플로우, 승인 체계
+- 지식 품질 관리: 검색 품질 평가셋, 권장 키워드 누락 감지, 문서 항목 수 자동 대사
+
+## 저장소 운영 판단
+
+현재 단계에서는 DB 지식 저장소보다 YAML 유지가 적합하다.
+지식이 정적이고 Git 리뷰 대상이며, MCP 서버를 가볍게 배포할 수 있기 때문이다.
+DB 전환은 운영자가 비개발 방식으로 자주 수정해야 하거나 사용자별 지식 분리가 필요해질 때 검토한다.
 
 ---
 
@@ -358,3 +419,7 @@ DB: userId + couponId UNIQUE 제약  → 최종 안전망
 | 0.4.0 | 2026-06-02 | 쿠폰/프로모션 도메인 추가 (검증, 계산, 선착순 발급, 규칙 엔진) |
 | 0.5.0 | 2026-06-02 | 범용 이커머스 정규화 지식 10개 추가 (commerce.yml) |
 | 0.6.0 | 2026-06-02 | Java Spring 이커머스 구현 지식 9개 추가 (spring-commerce.yml) |
+| 0.7.0 | 2026-06-04 | 범용 이커머스 지식 5개 추가 (고객, 체크아웃, 검색, 클레임, 보안) |
+| 0.8.0 | 2026-06-04 | Java/Spring 구현 지식 6개 추가 (값 객체, 예외, Stream, 보안, 설정, 마이그레이션) |
+| 0.9.0 | 2026-06-04 | 범용 이커머스 지식 5개 추가 (포인트, 멤버십, 리뷰, 구독, 운영 SLO) |
+| 1.0.0 | 2026-06-04 | Java/Spring 구현 지식 5개 추가 (API, DB, 비동기, 회복성, 배포) |

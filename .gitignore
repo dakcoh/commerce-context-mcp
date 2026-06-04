@@ -37,4 +37,10 @@ out/
 .vscode/
 
 ### Runtime logs ###
-logs/*.log
+logs/
+
+### Local package manager cache ###
+.npm-cache/
+
+### Local MCP client settings ###
+.claude/settings.json

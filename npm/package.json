@@ -1,7 +1,7 @@
 {
   "name": "commerce-context-mcp",
   "version": "0.0.1",
-  "description": "AI 코딩 도구가 이커머스 백엔드 개발 시 도메인 함정을 자동 경고하는 MCP 서버 (재고·결제·정산·쿠폰)",
+  "description": "Java/Spring 이커머스 백엔드 지식을 AI 코딩 도구에 연결하는 MCP 서버",
   "keywords": [
     "mcp",
     "mcp-server",
@@ -12,7 +12,7 @@
     "cursor",
     "spring-ai"
   ],
-  "homepage": "https://github.com/dakcoh/context-engine#readme",
+  "homepage": "https://github.com/dakcoh/context-engine",
   "bugs": {
     "url": "https://github.com/dakcoh/context-engine/issues"
   },

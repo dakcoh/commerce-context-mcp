@@ -9,6 +9,12 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.containsNormalized;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.hasSearchKeyword;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.missingKeywordMessage;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.normalize;
+import static com.commerce.context_engine.service.KnowledgeSearchSupport.safeList;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -48,12 +54,16 @@ public class InventoryKnowledgeService {
      * title, content, tags 중 하나라도 keyword를 포함하면 반환한다.
      */
     public String search(String keyword) {
-        String lower = keyword.toLowerCase();
-        List<Item> matched = properties.getItems().stream()
+        if (!hasSearchKeyword(keyword)) {
+            return missingKeywordMessage();
+        }
+
+        String lower = normalize(keyword);
+        List<Item> matched = safeList(properties.getItems()).stream()
                 .filter(item ->
-                        item.getTitle().toLowerCase().contains(lower)
-                        || item.getContent().toLowerCase().contains(lower)
-                        || item.getTags().stream().anyMatch(t -> t.toLowerCase().contains(lower)))
+                        containsNormalized(item.getTitle(), lower)
+                        || containsNormalized(item.getContent(), lower)
+                        || safeList(item.getTags()).stream().anyMatch(t -> containsNormalized(t, lower)))
                 .collect(Collectors.toList());
 
         if (matched.isEmpty()) {
@@ -65,14 +75,18 @@ public class InventoryKnowledgeService {
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private List<Item> filterByCategory(String category) {
-        return properties.getItems().stream()
+        return safeList(properties.getItems()).stream()
                 .filter(i -> category.equals(i.getCategory()))
                 .collect(Collectors.toList());
     }
 
     private String format(List<Item> items) {
-        return items.stream()
-                .map(i -> "## " + i.getTitle() + "\n" + i.getContent().trim())
+        return safeList(items).stream()
+                .map(i -> "## " + i.getTitle() + "\n" + normalizeContent(i.getContent()))
                 .collect(Collectors.joining("\n\n"));
+    }
+
+    private String normalizeContent(String content) {
+        return content == null ? "" : content.trim();
     }
 }
