@@ -1,4 +1,4 @@
-# Commerce Context Engine — Architecture
+# Commerce Context MCP — Architecture
 
 > 상세 아키텍처 문서. 시스템 구조, 계층 책임, 데이터 흐름을 기술한다.
 
@@ -18,7 +18,7 @@
             └──────────────┬──────────────┘
                            ▼
 ┌──────────────────────────────────────────────────────────┐
-│              Commerce Context Engine                     │
+│              Commerce Context MCP                        │
 │              (Spring Boot 3.5 + Spring AI MCP)           │
 │                                                          │
 │  ┌───────────────────────────────────────────────────┐   │
@@ -164,11 +164,11 @@ commerce:
 ### STDIO (Claude Code / Cursor npx 연결)
 
 ```bash
-npx commerce-context-mcp
+npx -y commerce-context-mcp
 ```
 
 STDIO 모드에서는 로그가 `logs/context-engine-stdio.log` 파일로만 기록되어 stdout이 깨끗하게 유지된다.
-`npx commerce-context-mcp` 실행 시 GitHub Release JAR를 다운로드한 뒤 이 모드로 자동 기동된다.
+`npx -y commerce-context-mcp` 실행 시 GitHub Release JAR를 다운로드한 뒤 이 모드로 자동 기동된다.
 
 개발 중 로컬 JAR를 직접 실행할 수도 있다.
 

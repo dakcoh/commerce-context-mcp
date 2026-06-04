@@ -1,4 +1,4 @@
-# Commerce Context Engine — CLAUDE.md
+# Commerce Context MCP — CLAUDE.md
 
 > AI 어시스턴트가 이 프로젝트를 작업할 때 반드시 읽어야 하는 컨텍스트 문서.
 
@@ -263,7 +263,7 @@ npm/
 **릴리즈 방법** (상세 절차는 docs/OPERATIONS.md 참고):
 ```bash
 # 1. JAR 빌드
-./gradlew bootJar "-Pversion=0.0.2"
+./gradlew bootJar "-Pversion=<new-version>"
 
 # 2. dakcoh/commerce-context-mcp 리포에 Release + JAR 수동 업로드
 
@@ -283,9 +283,9 @@ npm/
 ```
 
 **현재 공개 버전**:
-- npm package: `commerce-context-mcp@0.0.1`
-- GitHub Release: `v0.0.1`
-- 사용자 실행: `npx commerce-context-mcp doctor`
+- npm package: `commerce-context-mcp@<version>`
+- GitHub Release: `v<version>`
+- 사용자 실행: `npx -y commerce-context-mcp doctor`
 
 ---
 
@@ -299,7 +299,7 @@ npm/
 ./gradlew bootRun
 
 # STDIO 모드 실행 (Claude Code 연결)
-java -jar build/libs/context-engine-0.0.1-SNAPSHOT.jar --spring.profiles.active=stdio
+java -jar build/libs/<jar-file> --spring.profiles.active=stdio
 ```
 
 ## 사용자 MCP 연결 설정

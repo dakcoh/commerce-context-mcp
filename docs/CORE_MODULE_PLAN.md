@@ -1,6 +1,6 @@
 # Core Module Separation Plan
 
-> 목표: Commerce Context Engine을 MCP 서버뿐 아니라 Java/Spring 프로젝트에서 재사용 가능한 지식 라이브러리로 고도화한다.
+> 목표: Commerce Context MCP를 MCP 서버뿐 아니라 Java/Spring 프로젝트에서 재사용 가능한 지식 라이브러리로 고도화한다.
 
 ## 현재 우선순위
 

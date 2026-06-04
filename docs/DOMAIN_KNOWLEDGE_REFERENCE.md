@@ -1,4 +1,4 @@
-# Commerce Context Engine — 도메인 지식 레퍼런스
+# Commerce Context MCP — 도메인 지식 레퍼런스
 
 > 이 문서는 MCP 서버가 AI에게 주입하는 도메인 지식의 원천 레퍼런스다.
 > 지식 모듈 추가·수정 시 이 문서를 먼저 업데이트한 후 코드에 반영한다.

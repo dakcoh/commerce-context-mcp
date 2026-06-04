@@ -20,6 +20,7 @@ function usage() {
 Usage:
   commerce-context-mcp [--help]
   commerce-context-mcp [--version]
+  commerce-context-mcp download
   commerce-context-mcp doctor
 
 With no command, downloads the release JAR if needed and starts the MCP server
@@ -92,6 +93,18 @@ function request(url, callback) {
     });
 }
 
+function formatBytes(bytes) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
 function downloadJar() {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
   const tempPath = `${JAR_PATH}.tmp`;
@@ -106,10 +119,37 @@ function downloadJar() {
       }
 
       const file = fs.createWriteStream(tempPath);
+      const total = Number(response.headers["content-length"] || 0);
+      let downloaded = 0;
+      let lastPercent = -1;
+      let lastLoggedAt = Date.now();
+
+      response.on("data", (chunk) => {
+        downloaded += chunk.length;
+
+        if (total > 0) {
+          const percent = Math.floor((downloaded / total) * 100);
+          if (percent >= lastPercent + 10 || percent === 100) {
+            lastPercent = percent;
+            console.error(
+              `Download progress: ${percent}% (${formatBytes(downloaded)} / ${formatBytes(total)})`
+            );
+          }
+          return;
+        }
+
+        const now = Date.now();
+        if (now - lastLoggedAt >= 3000) {
+          lastLoggedAt = now;
+          console.error(`Downloaded ${formatBytes(downloaded)}...`);
+        }
+      });
+
       response.pipe(file);
       file.on("finish", () => {
         file.close(() => {
           fs.renameSync(tempPath, JAR_PATH);
+          console.error(`Cached JAR: ${JAR_PATH}`);
           resolve();
         });
       });
@@ -125,7 +165,10 @@ function downloadJar() {
 async function ensureJar() {
   if (!fs.existsSync(JAR_PATH)) {
     await downloadJar();
+    return;
   }
+
+  console.error(`Using cached JAR: ${JAR_PATH}`);
 }
 
 async function doctor() {
@@ -141,9 +184,15 @@ async function doctor() {
   process.exit(status.ok ? 0 : 1);
 }
 
+async function downloadOnly() {
+  assertJava();
+  await ensureJar();
+}
+
 async function startServer(args) {
   assertJava();
   await ensureJar();
+  console.error("Starting MCP server over stdio. This process stays running while the MCP client is connected.");
 
   const child = spawn(
     "java",
@@ -179,6 +228,11 @@ async function main() {
 
   if (command === "doctor") {
     await doctor();
+    return;
+  }
+
+  if (command === "download" || command === "--download-only") {
+    await downloadOnly();
     return;
   }
 

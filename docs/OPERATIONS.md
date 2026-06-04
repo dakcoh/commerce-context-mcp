@@ -1,4 +1,4 @@
-# Commerce Context Engine — Operations
+# Commerce Context MCP — Operations
 
 > npm 공개 배포, 로컬 개발 검증, JAR 릴리즈 절차를 한 곳에 모은 운영 문서.
 
@@ -7,8 +7,8 @@
 공개 사용자는 별도 JAR 경로를 설정하지 않고 `npx`로 실행한다.
 
 ```powershell
-npx commerce-context-mcp --help
-npx commerce-context-mcp doctor
+npx -y commerce-context-mcp --help
+npx -y commerce-context-mcp doctor
 ```
 
 MCP 클라이언트 설정:
@@ -69,7 +69,8 @@ Cursor 연결 예:
 
 ```powershell
 .\gradlew.bat bootJar --no-daemon
-java -jar build\libs\context-engine-0.0.1-SNAPSHOT.jar --spring.profiles.active=stdio
+Get-ChildItem build\libs\*.jar
+java -jar build\libs\<jar-file> --spring.profiles.active=stdio
 ```
 
 Claude Code 연결 예:
@@ -126,15 +127,15 @@ STDIO 모드에서는 stdout이 MCP 통신에 사용되므로 로그는 `logs/co
 - `.github/workflows/release.yml`의 GitHub Release JAR URL
 - `README.md`, `docs/*.md`의 GitHub URL과 리포명
 - GitHub Release URL이 새 리포명으로 정상 리다이렉트 또는 다운로드되는지 확인
-- `npx commerce-context-mcp doctor` 출력의 Release URL 확인
+- `npx -y commerce-context-mcp doctor` 출력의 Release URL 확인
 - 원격 저장소 URL 재설정:
 
 ```powershell
 git remote set-url origin https://github.com/dakcoh/{new-repo-name}.git
 ```
 
-중요: 기존 npm 버전 `0.0.1`은 이미 배포되어 있으므로 같은 버전으로 다시 배포할 수 없다.
-리포명 변경을 npm 사용자에게 반영하려면 `0.0.2` 같은 새 버전으로 Release JAR와 npm 패키지를 함께 배포한다.
+중요: npm은 같은 버전을 다시 publish할 수 없다.
+리포명 변경이나 문서/실행기 변경을 npm 사용자에게 반영하려면 반드시 새 버전으로 Release JAR와 npm 패키지를 함께 배포한다.
 
 ## 최초 준비
 
@@ -145,31 +146,34 @@ git remote set-url origin https://github.com/dakcoh/{new-repo-name}.git
 
 ## 버전 릴리즈
 
-`0.0.1`은 이미 npm에 배포되어 있으므로 같은 버전으로 다시 배포할 수 없다.
-다음 릴리즈는 `0.0.2`처럼 새 버전을 사용한다.
+npm에 한 번 publish된 버전은 덮어쓸 수 없다.
+릴리즈할 때마다 아직 npm에 없는 새 버전을 정한다.
 
 ```powershell
 cd <repo-root>
+$version = "<new-version>"
 .\gradlew.bat test --no-daemon
 .\gradlew.bat validateKnowledge --no-daemon
-.\gradlew.bat bootJar "-Pversion=0.0.2" --no-daemon
+.\gradlew.bat bootJar "-Pversion=$version" --no-daemon
 ```
 
 생성 파일:
 
 ```powershell
-build\libs\context-engine-0.0.2.jar
+build\libs\context-engine-<new-version>.jar
 ```
 
 GitHub Release:
 
 1. `dakcoh/commerce-context-mcp` 리포에서 release를 만든다.
-2. tag와 title은 `v0.0.2`로 맞춘다.
-3. `build/libs/context-engine-0.0.2.jar`를 첨부한다.
+2. tag와 title은 `v<new-version>`으로 맞춘다.
+3. `build/libs/context-engine-<new-version>.jar`를 첨부한다.
 4. Release를 Publish한다.
 
 Release가 Publish되면 `.github/workflows/release.yml`이 실행된다.
 워크플로우는 지식 검증과 JAR 빌드를 다시 수행한 뒤, GitHub Release에 첨부된 JAR URL을 확인하고 npm 패키지를 publish한다.
+이때 `npm/package.json`의 버전은 GitHub Actions runner 안에서 Release tag 버전으로 동기화된다.
+따라서 저장소의 기본 `npm/package.json` 버전은 릴리즈 tag와 항상 같을 필요는 없다.
 
 배포 확인:
 
@@ -179,13 +183,14 @@ $env:npm_config_cache='.npm-cache'
 npm.cmd pack --dry-run
 cd ..
 npm.cmd view commerce-context-mcp version
-npx.cmd commerce-context-mcp --help
-npx.cmd commerce-context-mcp doctor
+npx.cmd -y commerce-context-mcp --help
+npx.cmd -y commerce-context-mcp doctor
+npx.cmd -y commerce-context-mcp download
 ```
 
 ## npm 실행기 동작
 
-`npx commerce-context-mcp`는 아래 순서로 동작한다.
+`npx -y commerce-context-mcp`는 아래 순서로 동작한다.
 
 1. Java 17 이상 확인
 2. GitHub Release에서 `context-engine-{version}.jar` 다운로드
@@ -198,12 +203,14 @@ npx.cmd commerce-context-mcp doctor
 ## npm 실행기 사용자 명령
 
 ```powershell
-npx commerce-context-mcp --help
-npx commerce-context-mcp --version
-npx commerce-context-mcp doctor
+npx -y commerce-context-mcp --help
+npx -y commerce-context-mcp --version
+npx -y commerce-context-mcp doctor
+npx -y commerce-context-mcp download
 ```
 
 `doctor`는 Java 17 이상 설치 여부, JAR 캐시 상태, 다운로드 예정 URL을 확인한다.
+`download`는 MCP 서버를 실행하지 않고 JAR 다운로드와 캐시 저장만 확인한다.
 외부 사용자 경험 고도화 항목은 이 문서의 릴리즈 전 점검과 npm 실행기 사용자 명령을 기준으로 관리한다.
 
 ## 릴리즈 전 점검
@@ -215,6 +222,7 @@ npx commerce-context-mcp doctor
 - public GitHub Release에 `context-engine-{version}.jar` 첨부 확인
 - `npm` 디렉토리에서 `npm.cmd pack --dry-run` 통과
 - `npm.cmd view commerce-context-mcp version` 확인
-- `npx.cmd commerce-context-mcp doctor` 확인
+- `npx.cmd -y commerce-context-mcp doctor` 확인
+- `npx.cmd -y commerce-context-mcp download` 확인
 - MCP 수동 질문 3개 이상 확인
-- `npm/package.json` 버전과 JAR 릴리즈 버전 일치
+- GitHub Actions 로그의 `npm version:` 값과 Release tag/JAR 버전 일치

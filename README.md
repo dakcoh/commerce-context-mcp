@@ -1,4 +1,4 @@
-# Commerce Context Engine
+# Commerce Context MCP
 
 > Java/Spring ecommerce backend knowledge MCP server for AI coding tools.
 > AI 코딩 도구에 Java/Spring 이커머스 백엔드 지식을 연결하는 MCP 서버입니다.
@@ -7,7 +7,7 @@ AI에게 "쇼핑몰 주문 API 만들어줘"라고 시키면 컨트롤러와 엔
 그런데 실제 이커머스 백엔드에서 중요한 재고 예약, 결제 웹훅 중복, 망취소,
 부분 환불, 정산 공제, 포인트 원장 같은 내용은 자주 빠집니다.
 
-Commerce Context Engine은 이런 이커머스 백엔드 함정을 MCP 도구로 AI에게 주입하는 서버입니다.
+Commerce Context MCP는 이런 이커머스 백엔드 함정을 MCP 도구로 AI에게 주입하는 서버입니다.
 Claude Code, Cursor 같은 MCP 클라이언트에서 Java/Spring 이커머스 지식을 불러와
 설계와 코드 리뷰에 참고할 수 있게 합니다.
 
@@ -16,8 +16,21 @@ AI 개발 도구에 연결하는 데 초점을 둡니다.
 
 ## English Summary
 
-Commerce Context Engine is an MCP server that provides Java/Spring ecommerce backend knowledge to AI coding tools such as Claude Code and Cursor.
+Commerce Context MCP is an MCP server that provides Java/Spring ecommerce backend knowledge to AI coding tools such as Claude Code and Cursor.
 It focuses on practical risks such as overselling, payment idempotency, webhook duplication, refund consistency, settlement reconciliation, and Spring implementation pitfalls.
+
+## 처음 사용하는 경우
+
+설치와 MCP 클라이언트 설정은 [npm 초보자 가이드](npm/README.md)를 먼저 보세요.
+
+일반 사용자는 JAR 파일을 직접 다운로드하거나 경로를 설정할 필요가 없습니다.
+Claude Code, Cursor, Claude Desktop 같은 MCP 클라이언트에 아래 실행 명령만 등록하면 됩니다.
+
+```bash
+npx -y commerce-context-mcp
+```
+
+자세한 설정 파일 위치와 확인 방법은 [npm/README.md](npm/README.md)에 정리되어 있습니다.
 
 ## 제공하는 것
 
@@ -41,12 +54,14 @@ It focuses on practical risks such as overselling, payment idempotency, webhook 
 ## 빠른 확인
 
 ```powershell
-npx commerce-context-mcp doctor
+npx -y commerce-context-mcp doctor
 ```
 
-`doctor`는 Node.js 버전, Java 버전, 로컬 JAR 캐시, GitHub Release 다운로드 URL을 확인합니다.
+`doctor`는 Java 설치 상태, 로컬 JAR 캐시, GitHub Release 다운로드 URL을 확인합니다.
 
 ## MCP 설정
+
+클라이언트별 설정 파일 위치는 [npm 초보자 가이드](npm/README.md)를 참고하세요.
 
 ```json
 {
@@ -59,8 +74,9 @@ npx commerce-context-mcp doctor
 }
 ```
 
-처음 실행하면 npm 실행기가 GitHub Release에서 `context-engine-0.0.1.jar`를 내려받고,
-사용자 캐시에 저장한 뒤 STDIO MCP 서버로 실행합니다.
+처음 실행하면 npm 실행기가 현재 npm 패키지 버전에 맞는 GitHub Release JAR를 내려받고,
+사용자 홈 디렉터리의 `.commerce-context-mcp` 캐시에 저장한 뒤 STDIO MCP 서버로 실행합니다.
+따라서 MCP 설정에는 JAR 파일명이나 로컬 JAR 경로를 직접 넣지 않습니다.
 
 ## 예시 질문
 
@@ -78,11 +94,13 @@ npx commerce-context-mcp doctor
 ```powershell
 .\gradlew.bat validateKnowledge --no-daemon
 .\gradlew.bat bootJar --no-daemon
-java -jar build\libs\context-engine-0.0.1-SNAPSHOT.jar --spring.profiles.active=stdio
+Get-ChildItem build\libs\*.jar
+java -jar build\libs\<jar-file> --spring.profiles.active=stdio
 ```
 
 ## 문서
 
+- [npm 초보자 가이드](npm/README.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Operations](docs/OPERATIONS.md)
 - [Domain Knowledge Reference](docs/DOMAIN_KNOWLEDGE_REFERENCE.md)
