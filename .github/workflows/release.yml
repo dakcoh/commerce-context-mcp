@@ -6,12 +6,12 @@ on:
 
 # ── 릴리즈 흐름 ────────────────────────────────────────────────────────────────
 #
-#  이 리포(context-engine)는 소스 코드와 public 릴리즈를 함께 관리합니다.
+#  이 리포(commerce-context-mcp)는 소스 코드와 public 릴리즈를 함께 관리합니다.
 #  JAR 파일은 이 리포의 GitHub Release에 수동으로 업로드합니다.
 #
 #  전체 릴리즈 절차:
 #  1. ./gradlew bootJar "-Pversion=X.Y.Z"  → JAR 빌드 (로컬)
-#  2. dakcoh/context-engine 리포에 GitHub Release 생성 후 JAR 업로드 (수동)
+#  2. dakcoh/commerce-context-mcp 리포에 GitHub Release 생성 후 JAR 업로드 (수동)
 #  3. Release Publish  → 이 워크플로우 트리거
 #     → 테스트 통과 확인 후 npm publish 자동 실행
 #
@@ -70,7 +70,7 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
             console.log('npm version:', pkg.version);
           "
-          curl -fIL "https://github.com/dakcoh/context-engine/releases/download/v${{ steps.version.outputs.VERSION }}/context-engine-${{ steps.version.outputs.VERSION }}.jar"
+          curl -fIL "https://github.com/dakcoh/commerce-context-mcp/releases/download/v${{ steps.version.outputs.VERSION }}/context-engine-${{ steps.version.outputs.VERSION }}.jar"
           npm pack --dry-run
           npm publish --access public
         env:

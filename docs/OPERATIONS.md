@@ -104,23 +104,21 @@ STDIO 모드에서는 stdout이 MCP 통신에 사용되므로 로그는 `logs/co
 
 | 리포 | 공개 여부 | 용도 |
 |------|----------|------|
-| `dakcoh/context-engine` | public | 소스 코드 + JAR 릴리즈 + npm 패키지 |
+| `dakcoh/commerce-context-mcp` | public | 소스 코드 + JAR 릴리즈 + npm 패키지 |
 
 ## 리포 이름 변경 검토
 
-현재 npm 패키지명은 `commerce-context-mcp`이고, GitHub 리포는 `dakcoh/context-engine`이다.
-리포명을 `context-engine-mcp`로 바꾸는 것은 가능하지만, 현재 npm 패키지명과는 다소 어긋난다.
+현재 npm 패키지명은 `commerce-context-mcp`이고, GitHub 리포도 `dakcoh/commerce-context-mcp`이다.
+패키지명과 리포명이 맞아 외부 사용자가 npm 패키지와 GitHub 프로젝트를 같은 이름으로 찾기 쉽다.
 
 판단 기준:
-- `context-engine`: MCP 외에도 core 라이브러리나 지식 엔진으로 확장하기 좋다.
-- `context-engine-mcp`: MCP 서버라는 성격이 분명하지만 범용 이름이라 이커머스 타깃이 덜 드러난다.
 - `commerce-context-mcp`: npm 패키지명과 맞고, 이커머스 MCP라는 목적이 가장 잘 드러난다.
+- `context-engine`: MCP 외에도 core 라이브러리나 지식 엔진으로 확장하기 좋지만 npm 패키지명과는 다르다.
+- `context-engine-mcp`: MCP 서버라는 성격이 분명하지만 범용 이름이라 이커머스 타깃이 덜 드러난다.
 
-GitHub 리포명을 바꾼다면 `context-engine-mcp`보다 `commerce-context-mcp`가 더 자연스럽다.
-다만 이미 `dakcoh/context-engine`으로 npm 배포와 GitHub Release가 연결되어 있으므로,
-초기 공개 버전에서는 현재 이름을 유지하고 다음 버전에서 바꾸는 편이 안전하다.
+현재는 `commerce-context-mcp`를 기준 이름으로 유지한다.
 
-리포명을 변경한다면 아래 항목을 함께 수정한다.
+리포명을 다시 변경한다면 아래 항목을 함께 수정한다.
 
 - GitHub Repository Settings에서 리포명 변경
 - `npm/package.json`의 `homepage`, `bugs.url`, `repository.url`
@@ -165,7 +163,7 @@ build\libs\context-engine-0.0.2.jar
 
 GitHub Release:
 
-1. `dakcoh/context-engine` 리포에서 release를 만든다.
+1. `dakcoh/commerce-context-mcp` 리포에서 release를 만든다.
 2. tag와 title은 `v0.0.2`로 맞춘다.
 3. `build/libs/context-engine-0.0.2.jar`를 첨부한다.
 4. Release를 Publish한다.

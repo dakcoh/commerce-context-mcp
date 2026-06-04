@@ -249,7 +249,7 @@ MCP 서버 밖에서 Java 라이브러리처럼 재사용할 수 있도록 `docs
 
 | 리포 | 공개 여부 | 용도 |
 |------|----------|------|
-| `dakcoh/context-engine` | **public** | 소스 코드 + JAR 릴리즈 + npm 패키지 |
+| `dakcoh/commerce-context-mcp` | **public** | 소스 코드 + JAR 릴리즈 + npm 패키지 |
 
 ## npm 패키지 구조
 
@@ -265,7 +265,7 @@ npm/
 # 1. JAR 빌드
 ./gradlew bootJar "-Pversion=0.0.2"
 
-# 2. dakcoh/context-engine 리포에 Release + JAR 수동 업로드
+# 2. dakcoh/commerce-context-mcp 리포에 Release + JAR 수동 업로드
 
 # 3. GitHub Release를 Publish하면 GitHub Actions가 npm 자동 배포
 ```

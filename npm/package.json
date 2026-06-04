@@ -15,13 +15,13 @@
     "cursor",
     "spring-ai"
   ],
-  "homepage": "https://github.com/dakcoh/context-engine",
+  "homepage": "https://github.com/dakcoh/commerce-context-mcp",
   "bugs": {
-    "url": "https://github.com/dakcoh/context-engine/issues"
+    "url": "https://github.com/dakcoh/commerce-context-mcp/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dakcoh/context-engine.git"
+    "url": "git+https://github.com/dakcoh/commerce-context-mcp.git"
   },
   "license": "MIT",
   "author": "dakcoh",

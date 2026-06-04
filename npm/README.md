@@ -37,4 +37,4 @@ npx commerce-context-mcp doctor
 - Node.js 16+
 - Java 17+
 
-More: https://github.com/dakcoh/context-engine
+More: https://github.com/dakcoh/commerce-context-mcp
