@@ -3,7 +3,6 @@ package com.commerce.context_engine.service;
 import com.commerce.context_engine.domain.inventory.InventoryKnowledgeProperties;
 import com.commerce.context_engine.domain.inventory.InventoryKnowledgeProperties.Item;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,7 +14,6 @@ import static com.commerce.context_engine.service.KnowledgeSearchSupport.missing
 import static com.commerce.context_engine.service.KnowledgeSearchSupport.normalize;
 import static com.commerce.context_engine.service.KnowledgeSearchSupport.safeList;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InventoryKnowledgeService {
@@ -64,7 +62,7 @@ public class InventoryKnowledgeService {
                         containsNormalized(item.getTitle(), lower)
                         || containsNormalized(item.getContent(), lower)
                         || safeList(item.getTags()).stream().anyMatch(t -> containsNormalized(t, lower)))
-                .collect(Collectors.toList());
+                .toList();
 
         if (matched.isEmpty()) {
             return "관련 재고 도메인 지식을 찾을 수 없습니다. 키워드: " + keyword;
@@ -77,7 +75,7 @@ public class InventoryKnowledgeService {
     private List<Item> filterByCategory(String category) {
         return safeList(properties.getItems()).stream()
                 .filter(i -> category.equals(i.getCategory()))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private String format(List<Item> items) {

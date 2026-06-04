@@ -1,10 +1,8 @@
 name: Release
 
-# v* 태그 푸시 시 실행 (예: git tag v0.0.1 && git push origin v0.0.1)
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types: [published]
 
 # ── 릴리즈 흐름 ────────────────────────────────────────────────────────────────
 #
@@ -14,7 +12,7 @@ on:
 #  전체 릴리즈 절차:
 #  1. ./gradlew bootJar "-Pversion=X.Y.Z"  → JAR 빌드 (로컬)
 #  2. dakcoh/context-engine 리포에 GitHub Release 생성 후 JAR 업로드 (수동)
-#  3. git tag vX.Y.Z && git push origin vX.Y.Z  → 이 워크플로우 트리거
+#  3. Release Publish  → 이 워크플로우 트리거
 #     → 테스트 통과 확인 후 npm publish 자동 실행
 #
 # ─────────────────────────────────────────────────────────────────────────────
@@ -38,6 +36,8 @@ jobs:
       - name: Extract version
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_REF_NAME: ${{ github.event.release.tag_name }}
 
       - name: Cache Gradle
         uses: actions/cache@v4

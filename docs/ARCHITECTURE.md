@@ -66,6 +66,7 @@
 
 - 지식 쿼리, 필터링, 포맷팅 담당.
 - **책임**: category 기반 필터링, 키워드 검색, 마크다운 변환
+- **공유 유틸**: `KnowledgeSearchSupport` — normalize, containsNormalized, safeList 등 검색 공통 메서드를 패키지-private 유틸로 모아 각 서비스에서 정적 임포트로 사용한다.
 - **확장 포인트**: 추후 DB 전환 시 이 계층만 교체하면 된다.
 
 ### Knowledge Layer (`domain/`, `resources/knowledge/`)
@@ -215,7 +216,7 @@ MCP 밖에서도 Java 라이브러리처럼 재사용하려면 `KnowledgeEntry`,
 `KnowledgeSearchResult`, `KnowledgeRepository`, `KnowledgeRenderer` 같은 구조화 API가 필요하다.
 
 상세 계획은 `docs/CORE_MODULE_PLAN.md`를 따른다.
-일주일 내 배포 목표를 고려해 초기에는 Gradle 멀티 모듈보다 패키지 경계를 먼저 만든다.
+공개 배포 이후의 안정적인 고도화를 위해 초기에는 Gradle 멀티 모듈보다 패키지 경계를 먼저 만든다.
 
 ### 새 도메인 추가 패턴
 

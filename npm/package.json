@@ -1,13 +1,16 @@
 {
   "name": "commerce-context-mcp",
   "version": "0.0.1",
-  "description": "Java/Spring 이커머스 백엔드 지식을 AI 코딩 도구에 연결하는 MCP 서버",
+  "description": "Java/Spring ecommerce backend knowledge MCP server for AI coding tools",
   "keywords": [
     "mcp",
     "mcp-server",
     "ai",
     "ecommerce",
     "commerce",
+    "java",
+    "spring",
+    "backend",
     "claude",
     "cursor",
     "spring-ai"
@@ -26,7 +29,8 @@
     "commerce-context-mcp": "bin/index.js"
   },
   "files": [
-    "bin/"
+    "bin/",
+    "README.md"
   ],
   "engines": {
     "node": ">=16"

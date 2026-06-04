@@ -1,11 +1,11 @@
 plugins {
 	java
-	id("org.springframework.boot") version "3.5.15-SNAPSHOT"
+	id("org.springframework.boot") version "3.5.14"
 	id("io.spring.dependency-management") version "1.1.7"
 }
 
 group = "com.commerce"
-// GitHub Actions 릴리즈 시: ./gradlew bootJar -Pversion=0.0.1
+// GitHub Actions 릴리즈 시: ./gradlew bootJar -Pversion=X.Y.Z
 // 로컬 개발 시: 0.0.1-SNAPSHOT (기본값)
 version = if (project.hasProperty("version") &&
               project.property("version").toString().isNotBlank() &&
@@ -22,7 +22,6 @@ java {
 
 repositories {
 	mavenCentral()
-	maven { url = uri("https://repo.spring.io/snapshot") }
 }
 
 extra["springAiVersion"] = "1.1.7"
