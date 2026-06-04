@@ -160,14 +160,20 @@ commerce:
 
 ## Transport 모드
 
-### STDIO (Claude Code / npx 연결)
+### STDIO (Claude Code / Cursor npx 연결)
+
+```bash
+npx commerce-context-mcp
+```
+
+STDIO 모드에서는 로그가 `logs/context-engine-stdio.log` 파일로만 기록되어 stdout이 깨끗하게 유지된다.
+`npx commerce-context-mcp` 실행 시 GitHub Release JAR를 다운로드한 뒤 이 모드로 자동 기동된다.
+
+개발 중 로컬 JAR를 직접 실행할 수도 있다.
 
 ```bash
 java -jar context-engine.jar --spring.profiles.active=stdio
 ```
-
-STDIO 모드에서는 로그가 `logs/context-engine-stdio.log` 파일로만 기록되어 stdout이 깨끗하게 유지된다.
-`npx commerce-context-mcp` 실행 시 이 모드로 자동 기동된다.
 
 ### SSE / Streamable HTTP (Cursor 직접 연결)
 

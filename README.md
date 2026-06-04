@@ -17,32 +17,22 @@ Claude Code, Cursor 같은 MCP 클라이언트가 재고, 결제, 정산, 쿠폰
 - 지식 YAML 스키마 자동 검증
 - npm 실행기 `commerce-context-mcp`
 
-## Local Run
+## Requirements
+
+- Node.js 16+
+- Java 17+
+- Claude Code, Cursor, or another MCP client
+
+## Quick Start
 
 ```powershell
-.\gradlew.bat validateKnowledge --no-daemon
-.\gradlew.bat bootJar --no-daemon
-java -jar build\libs\context-engine-0.0.1-SNAPSHOT.jar --spring.profiles.active=stdio
+npx commerce-context-mcp doctor
 ```
+
+`doctor` checks your Node.js version, Java version, local JAR cache, and the
+GitHub Release URL used by the launcher.
 
 ## MCP Config
-
-```json
-{
-  "mcpServers": {
-    "commerce-context": {
-      "command": "java",
-      "args": [
-        "-jar",
-        "C:\\project\\context-engine\\build\\libs\\context-engine-0.0.1-SNAPSHOT.jar",
-        "--spring.profiles.active=stdio"
-      ]
-    }
-  }
-}
-```
-
-After npm release:
 
 ```json
 {
@@ -53,6 +43,26 @@ After npm release:
     }
   }
 }
+```
+
+On first run, the npm launcher downloads `context-engine-0.0.1.jar` from the
+GitHub Release, stores it in the user cache, and starts the MCP server in STDIO
+mode.
+
+## Example Questions
+
+- "Spring Boot 쇼핑몰 주문 API 만들 때 빠뜨리기 쉬운 점 알려줘"
+- "재고 차감 로직에서 오버셀링을 막는 기준 알려줘"
+- "결제 웹훅 처리에서 중복 결제를 어떻게 막아?"
+- "이커머스에서 포인트와 멤버십 등급을 설계할 때 주의할 점 알려줘"
+- "Spring Boot에서 cursor pagination과 idempotent POST를 어떻게 설계하면 좋아?"
+
+## Development
+
+```powershell
+.\gradlew.bat validateKnowledge --no-daemon
+.\gradlew.bat bootJar --no-daemon
+java -jar build\libs\context-engine-0.0.1-SNAPSHOT.jar --spring.profiles.active=stdio
 ```
 
 ## Docs

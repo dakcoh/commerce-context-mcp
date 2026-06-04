@@ -18,12 +18,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/dakcoh/context-engine.git"
+    "url": "git+https://github.com/dakcoh/context-engine.git"
   },
   "license": "MIT",
   "author": "dakcoh",
   "bin": {
-    "commerce-context-mcp": "./bin/index.js"
+    "commerce-context-mcp": "bin/index.js"
   },
   "files": [
     "bin/"

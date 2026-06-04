@@ -1,19 +1,19 @@
-# External Usage Plan
+# External Usage
 
-> 목표: 외부 사용자가 Java/Spring 이커머스 지식 MCP를 복잡한 설치 없이 바로 연결하고 검증할 수 있게 만든다.
+> 외부 사용자는 npm에 배포된 `commerce-context-mcp`를 `npx`로 실행한다.
 
-## 방향 전환
+## 현재 배포 상태
 
-`core` 모듈 분리는 장기적으로 의미가 있지만, 외부 사용자가 가장 먼저 원하는 것은 라이브러리 API가 아니다.
-우선순위는 아래처럼 잡는다.
+`commerce-context-mcp@0.0.1`은 npm에 공개되어 있다.
+JAR는 GitHub Release에서 다운로드된다.
 
-1. `npx commerce-context-mcp` 한 줄 실행
-2. Claude Code / Cursor 설정 복붙
-3. 실행 전 문제를 확인하는 `doctor` 명령
-4. 설치와 연결을 안내하는 명확한 문서
-5. 이후 필요해지면 구조화 API와 core 모듈 분리
+```powershell
+npm.cmd view commerce-context-mcp version
+npx.cmd commerce-context-mcp --help
+npx.cmd commerce-context-mcp doctor
+```
 
-## 사용자 경험 목표
+## 사용자 경험
 
 ### 1. 기본 실행
 
@@ -97,17 +97,10 @@ npx commerce-context-mcp doctor
 - `cache clean`: 다운로드된 JAR 캐시 제거
 - `serve --http --port 8080`: npm 실행기에서 HTTP/SSE 모드 실행
 - 설치 문서에 Claude Code, Cursor, VS Code별 예시 추가
-- 릴리즈 후 실제 `npx` 기반 smoke test 자동화
+- 실제 `npx` 기반 smoke test 자동화
 
 ## Core 모듈 분리와의 관계
 
 `docs/CORE_MODULE_PLAN.md`는 장기 고도화 계획으로 유지한다.
-다만 일주일 내 서비스 배포 목표에서는 외부 사용성 고도화가 우선이다.
-
-권장 순서:
-
-1. npm 실행기 UX 개선
-2. 외부 사용자 문서 정리
-3. 릴리즈 smoke test
-4. 배포 안정화
-5. core 구조화 API 도입
+외부 사용성은 npm 배포로 1차 완료했다.
+이후에는 릴리즈 smoke test, 설치 문서 보강, core 구조화 API 도입 순서로 개선한다.

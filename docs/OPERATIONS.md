@@ -1,6 +1,34 @@
 # Commerce Context Engine — Operations
 
-> 로컬 테스트, MCP 연결, JAR 빌드, 릴리즈 절차를 한 곳에 모은 운영 문서.
+> npm 공개 배포, 로컬 개발 검증, JAR 릴리즈 절차를 한 곳에 모은 운영 문서.
+
+## 사용자 설치 확인
+
+공개 사용자는 별도 JAR 경로를 설정하지 않고 `npx`로 실행한다.
+
+```powershell
+npx commerce-context-mcp --help
+npx commerce-context-mcp doctor
+```
+
+MCP 클라이언트 설정:
+
+```json
+{
+  "mcpServers": {
+    "commerce-context": {
+      "command": "npx",
+      "args": ["-y", "commerce-context-mcp"]
+    }
+  }
+}
+```
+
+동작 순서:
+- Java 17 이상 확인
+- GitHub Release에서 `context-engine-{version}.jar` 다운로드
+- 사용자 캐시에 JAR 저장
+- STDIO 프로파일로 MCP 서버 실행
 
 ## 로컬 검증
 
@@ -35,7 +63,9 @@ Cursor 연결 예:
 }
 ```
 
-## STDIO 모드
+## 개발용 STDIO 모드
+
+일반 사용자는 이 방식을 쓰지 않는다. 릴리즈 전 로컬 JAR를 직접 검증할 때만 사용한다.
 
 ```powershell
 .\gradlew.bat bootJar --no-daemon
@@ -72,14 +102,14 @@ STDIO 모드에서는 stdout이 MCP 통신에 사용되므로 로그는 `logs/co
 
 | 리포 | 공개 여부 | 용도 |
 |------|----------|------|
-| `dakcoh/context-engine` | public 전환 예정 | 소스 코드 + JAR 릴리즈 + npm 패키지 |
+| `dakcoh/context-engine` | public | 소스 코드 + JAR 릴리즈 + npm 패키지 |
 
 ## 최초 준비
 
 1. npm 계정을 만든다.
-2. npm `Automation` access token을 발급한다.
-3. GitHub Actions Secret에 `NPM_TOKEN`을 등록한다.
-4. 리포를 public으로 전환하기 전에 민감정보 스캔과 릴리즈 문서를 확인한다.
+2. 첫 배포는 로컬에서 `npm.cmd publish --access public`로 진행할 수 있다.
+3. 자동 배포를 사용하려면 npm `Automation` access token을 발급한다.
+4. GitHub Actions Secret에 `NPM_TOKEN`을 등록한다.
 
 ## 버전 릴리즈
 
@@ -116,20 +146,22 @@ cd npm
 $env:npm_config_cache='C:\project\context-engine\.npm-cache'
 npm.cmd pack --dry-run
 cd ..
-npm view commerce-context-mcp version
-npx commerce-context-mcp
+npm.cmd view commerce-context-mcp version
+npx.cmd commerce-context-mcp --help
+npx.cmd commerce-context-mcp doctor
 ```
 
 ## npm 실행기 동작
 
-릴리즈 후 `npx commerce-context-mcp`는 아래 순서로 동작한다.
+`npx commerce-context-mcp`는 아래 순서로 동작한다.
 
 1. Java 17 이상 확인
 2. GitHub Release에서 `context-engine-{version}.jar` 다운로드
 3. 사용자 캐시 경로에 JAR 저장
 4. STDIO 프로파일로 JAR 실행
 
-릴리즈 전 로컬 테스트는 `npx`보다 JAR 직접 실행 방식을 우선 사용한다.
+릴리즈 후 사용자 테스트는 `npx`를 우선 사용한다.
+릴리즈 전 내부 검증은 개발용 STDIO 모드로 로컬 JAR를 직접 실행해도 된다.
 
 ## npm 실행기 사용자 명령
 
@@ -150,6 +182,7 @@ npx commerce-context-mcp doctor
 - JAR 빌드 성공
 - public GitHub Release에 `context-engine-{version}.jar` 첨부 확인
 - `npm` 디렉토리에서 `npm.cmd pack --dry-run` 통과
+- `npm.cmd view commerce-context-mcp version` 확인
+- `npx.cmd commerce-context-mcp doctor` 확인
 - MCP 수동 질문 3개 이상 확인
 - `npm/package.json` 버전과 JAR 릴리즈 버전 일치
-- 운영 배포 전에는 snapshot 의존성을 안정 버전으로 고정할지 검토
