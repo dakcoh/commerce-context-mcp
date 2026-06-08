@@ -221,6 +221,7 @@ spring-commerce:
 6. repository/YamlKnowledgeRepository.java 에 필드·map{Domain}() 메서드 추가
 7. tool/{Domain}ContextTool.java 작성 (KnowledgeSearchService + KnowledgeRenderer 주입)
 8. config/McpToolConfig.java 에 allToolCallbackProvider() 인자 추가
+   + src/main/resources/application.yml 의 mcp.server.annotation-scanner.tool-beans 목록도 함께 동기화
 9. docs/CLAUDE.md 의 도구 목록 업데이트
 ```
 
@@ -262,7 +263,7 @@ spring-commerce:
 **테스트 범위**:
 - `KnowledgeSchemaValidationTest` — 전체 YAML 지식 ID 중복, 허용 category, 필수 필드, 태그 검증
 - `YamlKnowledgeRepositoryTest` — 8개: 전체 항목 수(≥66), 도메인 필터, sections 구조, 필수 필드 검증
-- `DefaultKnowledgeSearchServiceTest` — 11개: 키워드 검색, 스코어 정렬, 도메인 필터, limit, matchedFields
+- `DefaultKnowledgeSearchServiceTest` — 14개: 키워드 검색, 스코어 정렬, 도메인 필터, limit, matchedFields, 다중 단어·띄어쓰기 무관 검색
 - `MarkdownKnowledgeRendererTest` — 12개: structured/rich/spring-commerce 렌더링, 섹션 헤더, numbered/bullet/checkbox 리스트
 - `InventoryContextToolTest` — 8개: 33개 도구 등록 확인, 재고 도구 응답 내용 검증
 - `PaymentContextToolTest` — 9개: 결제 도구 등록 확인, state-machine 포함 각 도구 응답 검증
@@ -270,6 +271,7 @@ spring-commerce:
 - `CouponContextToolTest` — 6개: 각 쿠폰 도구 응답 내용 검증
 - `CommerceContextToolTest` — 3개: 범용 이커머스 도구 응답 검증
 - `SpringCommerceContextToolTest` — 3개: Java Spring MCP 도구 응답 검증
+- `UnifiedSearchToolTest` — 5개: 전체 도메인 통합 검색, 빈 키워드, 결과 없음 처리
 - `ContextEngineApplicationTests` — 1개: 컨텍스트 로드 확인
 
 ---
@@ -348,7 +350,7 @@ java -jar build/libs/<jar-file> --spring.profiles.active=stdio
 
 **STDIO 프로파일 특징**:
 - 로그가 `logs/context-engine-stdio.log` 파일로만 기록됨 (stdout 오염 없음)
-- Tomcat이 랜덤 포트로 기동 (HTTP 포트 충돌 방지)
+- 웹 서버(Tomcat) 미기동 (`web-application-type=none`) — 콜드 스타트·메모리 절감, 포트 점유 없음
 - Spring Boot 배너 비활성화
 
 ---

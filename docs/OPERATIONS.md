@@ -26,7 +26,8 @@ MCP 클라이언트 설정:
 
 동작 순서:
 - Java 17 이상 확인
-- GitHub Release에서 `context-engine-{version}.jar` 다운로드
+- GitHub Release에서 `context-engine-{version}.jar` 다운로드 (잘린 다운로드 감지·최대 3회 재시도)
+- 릴리즈의 `.sha256` 자산으로 무결성 검증 (불일치 시 캐시 삭제 후 실패, 자산 없으면 경고 후 진행)
 - 사용자 캐시에 JAR 저장
 - STDIO 프로파일로 MCP 서버 실행
 
@@ -40,7 +41,7 @@ MCP 클라이언트 설정:
 확인 항목:
 - YAML 지식이 `@ConfigurationProperties`로 정상 바인딩되는지
 - 지식 ID 중복, 허용 category, 필수 필드, 빈 태그가 없는지
-- MCP 도구 31개가 등록되는지
+- MCP 도구 33개가 등록되는지
 - 검색 도구가 핵심 키워드에 맞는 지식을 반환하는지
 
 ## HTTP/SSE 모드
@@ -171,7 +172,9 @@ GitHub Release:
 4. Release를 Publish한다.
 
 Release가 Publish되면 `.github/workflows/release.yml`이 실행된다.
-워크플로우는 지식 검증과 JAR 빌드를 다시 수행한 뒤, GitHub Release에 첨부된 JAR URL을 확인하고 npm 패키지를 publish한다.
+워크플로우는 지식 검증과 JAR 빌드를 다시 수행한 뒤, GitHub Release에 첨부된 JAR을 내려받아
+`context-engine-{version}.jar.sha256` 체크섬 자산을 생성·업로드하고, npm 패키지를 publish한다.
+체크섬은 CI 빌드 산출물이 아니라 릴리즈에 올라간 JAR 자체에서 계산하므로 사용자가 받는 파일과 항상 일치한다.
 이때 `npm/package.json`의 버전은 GitHub Actions runner 안에서 Release tag 버전으로 동기화된다.
 따라서 저장소의 기본 `npm/package.json` 버전은 릴리즈 tag와 항상 같을 필요는 없다.
 
@@ -193,9 +196,12 @@ npx.cmd -y commerce-context-mcp download
 `npx -y commerce-context-mcp`는 아래 순서로 동작한다.
 
 1. Java 17 이상 확인
-2. GitHub Release에서 `context-engine-{version}.jar` 다운로드
-3. 사용자 캐시 경로에 JAR 저장
-4. STDIO 프로파일로 JAR 실행
+2. GitHub Release에서 `context-engine-{version}.jar` 다운로드 (잘린 다운로드 감지·최대 3회 재시도)
+3. 릴리즈의 `context-engine-{version}.jar.sha256` 으로 무결성 검증
+   - 해시 불일치: 손상 캐시 삭제 후 종료(코드 1)
+   - `.sha256` 자산 없음(구버전 릴리즈): 경고만 남기고 진행
+4. 사용자 캐시 경로에 JAR 저장
+5. STDIO 프로파일로 JAR 실행
 
 릴리즈 후 사용자 테스트는 `npx`를 우선 사용한다.
 릴리즈 전 검증은 개발용 STDIO 모드로 로컬 JAR를 직접 실행해도 된다.
@@ -220,6 +226,7 @@ npx -y commerce-context-mcp download
 - 전체 테스트 통과
 - JAR 빌드 성공
 - public GitHub Release에 `context-engine-{version}.jar` 첨부 확인
+- 워크플로우가 `context-engine-{version}.jar.sha256` 자산을 업로드했는지 확인 (npm 무결성 검증의 기준)
 - `npm` 디렉토리에서 `npm.cmd pack --dry-run` 통과
 - `npm.cmd view commerce-context-mcp version` 확인
 - `npx.cmd -y commerce-context-mcp doctor` 확인

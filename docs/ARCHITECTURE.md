@@ -22,14 +22,15 @@
 │              (Spring Boot 3.5 + Spring AI MCP)           │
 │                                                          │
 │  ┌───────────────────────────────────────────────────┐   │
-│  │              Tool Layer  (@Tool × 31)             │   │
+│  │              Tool Layer  (@Tool × 33)             │   │
 │  │                                                   │   │
 │  │  InventoryContextTool    × 6  (재고)              │   │
-│  │  PaymentContextTool      × 7  (결제)              │   │
+│  │  PaymentContextTool      × 8  (결제)              │   │
 │  │  SettlementContextTool   × 6  (정산)              │   │
 │  │  CouponContextTool       × 6  (쿠폰/프로모션)     │   │
 │  │  CommerceContextTool     × 3  (범용 이커머스)     │   │
 │  │  SpringCommerceContextTool × 3 (Java Spring)     │   │
+│  │  UnifiedSearchTool       × 1  (전체 통합 검색)    │   │
 │  └──────────┬───────────────────┬───────────────────┘   │
 │             │                   │                        │
 │  ┌──────────▼──────────┐  ┌─────▼──────────────────┐   │
@@ -103,11 +104,16 @@ AI 코딩 도구 (Claude Code / Cursor)
         │
         ▼
 InventoryContextTool.getInventoryContext()
+  → KnowledgeSearchService.getByDomain("inventory")
         │
         ▼
-InventoryKnowledgeService.getInventoryContext()
-  → InventoryKnowledgeProperties.getItems() 전체 반환
-  → format(): 마크다운으로 변환
+DefaultKnowledgeSearchService
+  → KnowledgeRepository.findByDomain("inventory")  (YamlKnowledgeRepository, 캐시 조회)
+  → List<KnowledgeEntry> 반환
+        │
+        ▼
+MarkdownKnowledgeRenderer.renderAll(entries)
+  → KnowledgeEntry를 마크다운으로 변환
         │
         ▼
 도메인 지식 문자열 (마크다운)
@@ -205,8 +211,8 @@ java -jar context-engine.jar --spring.profiles.active=stdio
 
 > `./gradlew bootRun` 으로 서버를 먼저 실행해야 한다.
 
-**검증 결과** (2026-06-02):
-- `tools/list` → 31개 도구 정상 반환
+**검증 결과** (2026-06-08):
+- `tools/list` → 33개 도구 정상 반환
 - `tools/call get_inventory_checklist` → 재고 체크리스트 정상 반환
 
 ---
@@ -229,18 +235,23 @@ MCP 밖에서도 Java 라이브러리처럼 재사용하려면 `KnowledgeEntry`,
 2. src/main/resources/knowledge/{domain}.yml 작성
 3. domain/{domain}/{Domain}KnowledgeProperties.java 추가
 4. config/KnowledgeConfig.java 에 @PropertySource + @EnableConfigurationProperties 추가
-5. service/{Domain}KnowledgeService.java 작성
-6. tool/{Domain}ContextTool.java 에 @Tool 메서드 추가
-7. config/McpToolConfig.java 에 toolObjects() 인자 추가
-8. docs/CLAUDE.md 도구 목록 업데이트
+5. repository/KnowledgeEntryMapper.java 에 매퍼 추가 (단순 도메인은 fromSimple 재사용)
+6. repository/YamlKnowledgeRepository.java 에 필드·map{Domain}() 추가
+7. tool/{Domain}ContextTool.java 작성 (KnowledgeSearchService + KnowledgeRenderer 주입)
+8. config/McpToolConfig.java 의 allToolCallbackProvider() 인자 추가
+9. docs/CLAUDE.md 도구 목록 업데이트
 ```
+
+> 도메인별 Service 클래스는 만들지 않는다. 검색·렌더링은 공통 인프라
+> (`DefaultKnowledgeSearchService`, `MarkdownKnowledgeRenderer`)가 처리한다.
+> 상세 순서는 `docs/CLAUDE.md`의 "새 도메인 모듈 추가 순서"를 단일 기준으로 따른다.
 
 ### DB 전환 계획
 
-- `{Domain}KnowledgeService`의 의존성을 `{Domain}KnowledgeProperties` → `{Domain}KnowledgeRepository` (JPA) 로 교체
-- Tool Layer, 나머지 계층 변경 없음
+- `KnowledgeRepository` 구현체를 `YamlKnowledgeRepository` → JPA 기반 구현으로 교체
+- Tool·Service(`DefaultKnowledgeSearchService`)·Renderer 계층 변경 없음 (인터페이스 경계 유지)
 - 관리자 API (지식 CRUD) 추가
-- 벡터 검색 (pgvector) 도입 시 Service의 `search()` 메서드만 교체
+- 벡터 검색 (pgvector) 도입 시 `KnowledgeSearchService.search()` 구현만 교체
 
 ---
 
@@ -263,7 +274,7 @@ MCP 밖에서도 Java 라이브러리처럼 재사용하려면 `KnowledgeEntry`,
 McpToolConfig
     └── allToolCallbackProvider(
             inventoryTool, paymentTool, settlementTool,
-            couponTool, commerceTool, springCommerceTool
+            couponTool, commerceTool, springCommerceTool, unifiedSearchTool
         )                                          ← ToolCallbackProvider 단일 빈
 
 KnowledgeConfig

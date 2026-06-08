@@ -5,8 +5,13 @@ spring:
     mcp:
       server:
         name: commerce-context-engine
-        version: 0.0.1
+        # 빌드 버전을 그대로 노출한다. spring.application.version 은 Spring Boot 가
+        # JAR MANIFEST의 Implementation-Version(=Gradle project.version)에서 채운다.
+        # IDE/테스트처럼 MANIFEST가 없을 때만 0.0.0 으로 폴백한다.
+        version: ${spring.application.version:0.0.0}
         type: SYNC
+        # 도구 등록의 단일 기준은 config/McpToolConfig 의 ToolCallbackProvider 빈이다.
+        # 아래 목록은 그 빈과 반드시 일치해야 한다(둘 다 7개 Tool 클래스, 총 33개 @Tool).
         annotation-scanner:
           tool-beans:
             - inventoryContextTool
@@ -15,6 +20,7 @@ spring:
             - couponContextTool
             - commerceContextTool
             - springCommerceContextTool
+            - unifiedSearchTool
 
 server:
   port: 8080

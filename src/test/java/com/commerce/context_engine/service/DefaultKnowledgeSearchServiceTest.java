@@ -65,6 +65,36 @@ class DefaultKnowledgeSearchServiceTest {
         assertThat(results).isEmpty();
     }
 
+    @Test
+    void search_multiWordKeyword_matchesEachTokenIndependently() {
+        // "웹훅 중복 결제"는 한 항목에 통째로 들어있지 않지만, 토큰별 매칭으로 결과가 노출돼야 한다
+        List<KnowledgeSearchResult> results = searchService.search(
+                KnowledgeQuery.ofKeyword("웹훅 중복 결제"));
+
+        assertThat(results).isNotEmpty();
+        assertThat(results).allMatch(r -> r.matchedFields().isEmpty() == false);
+    }
+
+    @Test
+    void search_whitespaceInsensitive_matchesSpacedContent() {
+        // 사용자가 띄어쓰기 없이 "부분취소"로 검색해도 "부분 취소" 지식이 매칭돼야 한다
+        List<KnowledgeSearchResult> spaced = searchService.search(KnowledgeQuery.ofKeyword("부분 취소"));
+        List<KnowledgeSearchResult> joined = searchService.search(KnowledgeQuery.ofKeyword("부분취소"));
+
+        assertThat(spaced).isNotEmpty();
+        assertThat(joined).isNotEmpty();
+    }
+
+    @Test
+    void search_singleToken_scoringUnchanged() {
+        // 단일 토큰 검색은 기존 스코어링과 동일해야 한다 (title 매칭 시 최소 5점)
+        List<KnowledgeSearchResult> results = searchService.search(KnowledgeQuery.ofKeyword("낙관락"));
+
+        assertThat(results).isNotEmpty();
+        assertThat(results.get(0).matchedFields()).contains("title");
+        assertThat(results.get(0).score()).isGreaterThanOrEqualTo(5);
+    }
+
     // ── domain 필터 ───────────────────────────────────────────────────────────
 
     @Test
