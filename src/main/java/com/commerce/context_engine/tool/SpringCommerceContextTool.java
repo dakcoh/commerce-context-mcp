@@ -1,6 +1,8 @@
 package com.commerce.context_engine.tool;
 
-import com.commerce.context_engine.service.SpringCommerceKnowledgeService;
+import com.commerce.context_engine.core.KnowledgeQuery;
+import com.commerce.context_engine.core.KnowledgeRenderer;
+import com.commerce.context_engine.core.KnowledgeSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -10,7 +12,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SpringCommerceContextTool {
 
-    private final SpringCommerceKnowledgeService knowledgeService;
+    private final KnowledgeSearchService searchService;
+    private final KnowledgeRenderer renderer;
 
     @Tool(name = "get_spring_commerce_implementation_context",
           description = """
@@ -20,7 +23,7 @@ public class SpringCommerceContextTool {
                   Spring Boot 쇼핑몰 신규 구축, 리팩터링, 코드 리뷰 요청 시 호출하세요.
                   """)
     public String getSpringCommerceImplementationContext() {
-        return knowledgeService.getSpringImplementationContext();
+        return renderer.renderAll(searchService.getByDomain("spring-commerce"));
     }
 
     @Tool(name = "get_spring_commerce_checklist",
@@ -29,7 +32,7 @@ public class SpringCommerceContextTool {
                   출시 전 검토, 아키텍처 리뷰, Spring 백엔드 누락 확인 요청 시 호출하세요.
                   """)
     public String getSpringCommerceChecklist() {
-        return knowledgeService.getChecklist();
+        return renderer.renderChecklist(searchService.getByDomain("spring-commerce"));
     }
 
     @Tool(name = "search_spring_commerce_knowledge",
@@ -39,6 +42,12 @@ public class SpringCommerceContextTool {
                   """)
     public String searchSpringCommerceKnowledge(
             @ToolParam(description = "검색 키워드 (예: '@Transactional', 'JPA', 'Redis', 'Outbox', 'Testcontainers', 'Optional', 'Stream', 'Security', 'Flyway')") String keyword) {
-        return knowledgeService.search(keyword);
+        if (keyword == null || keyword.isBlank()) {
+            return "검색 키워드를 입력해주세요.";
+        }
+        var results = searchService.search(KnowledgeQuery.ofDomainAndKeyword("spring-commerce", keyword));
+        return results.isEmpty()
+                ? "관련 Java Spring 이커머스 구현 지식을 찾을 수 없습니다. 키워드: " + keyword
+                : renderer.renderSearchResults(results);
     }
 }

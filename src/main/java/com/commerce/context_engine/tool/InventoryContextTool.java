@@ -1,6 +1,8 @@
 package com.commerce.context_engine.tool;
 
-import com.commerce.context_engine.service.InventoryKnowledgeService;
+import com.commerce.context_engine.core.KnowledgeQuery;
+import com.commerce.context_engine.core.KnowledgeRenderer;
+import com.commerce.context_engine.core.KnowledgeSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -10,7 +12,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class InventoryContextTool {
 
-    private final InventoryKnowledgeService knowledgeService;
+    private final KnowledgeSearchService searchService;
+    private final KnowledgeRenderer renderer;
 
     @Tool(name = "get_inventory_context",
           description = """
@@ -19,7 +22,7 @@ public class InventoryContextTool {
                   '재고 차감', '재고 로직', '재고 관리' 등의 요청 시 호출하세요.
                   """)
     public String getInventoryContext() {
-        return knowledgeService.getInventoryContext();
+        return renderer.renderAll(searchService.getByDomain("inventory"));
     }
 
     @Tool(name = "get_concurrency_strategy",
@@ -29,7 +32,7 @@ public class InventoryContextTool {
                   '락', '동시성', 'Lock', '오버셀링', '동시 요청' 등의 요청 시 호출하세요.
                   """)
     public String getConcurrencyStrategy() {
-        return knowledgeService.getConcurrencyStrategy();
+        return renderer.renderAll(searchService.getByCategory("inventory", "concurrency"));
     }
 
     @Tool(name = "get_saga_pattern",
@@ -39,7 +42,7 @@ public class InventoryContextTool {
                   'Saga', '보상 트랜잭션', '분산 트랜잭션', '정합성', 'Outbox' 요청 시 호출하세요.
                   """)
     public String getSagaPattern() {
-        return knowledgeService.getSagaPattern();
+        return renderer.renderAll(searchService.getByCategory("inventory", "consistency"));
     }
 
     @Tool(name = "get_idempotency_guide",
@@ -49,7 +52,7 @@ public class InventoryContextTool {
                   '멱등성', '중복 요청', '이중 차감', 'idempotency' 요청 시 호출하세요.
                   """)
     public String getIdempotencyGuide() {
-        return knowledgeService.getIdempotencyGuide();
+        return renderer.renderAll(searchService.getByCategory("inventory", "idempotency"));
     }
 
     @Tool(name = "get_inventory_checklist",
@@ -59,17 +62,23 @@ public class InventoryContextTool {
                   '체크리스트', '검토', '확인', 'checklist' 요청 시 호출하세요.
                   """)
     public String getInventoryChecklist() {
-        return knowledgeService.getChecklist();
+        return renderer.renderChecklist(searchService.getByCategory("inventory", "checklist"));
     }
 
     @Tool(name = "search_inventory_knowledge",
           description = """
                   키워드로 재고 도메인 지식을 검색합니다.
-                  title, content, tags에서 검색하며 관련 항목을 반환합니다.
+                  title, summary, tags, 섹션 내용에서 검색하며 관련도 순으로 반환합니다.
                   특정 주제에 대한 지식을 찾을 때 사용하세요.
                   """)
     public String searchInventoryKnowledge(
             @ToolParam(description = "검색 키워드 (예: 'redis', '낙관락', 'saga', '멱등성')") String keyword) {
-        return knowledgeService.search(keyword);
+        if (keyword == null || keyword.isBlank()) {
+            return "검색 키워드를 입력해주세요.";
+        }
+        var results = searchService.search(KnowledgeQuery.ofDomainAndKeyword("inventory", keyword));
+        return results.isEmpty()
+                ? "관련 재고 도메인 지식을 찾을 수 없습니다. 키워드: " + keyword
+                : renderer.renderSearchResults(results);
     }
 }

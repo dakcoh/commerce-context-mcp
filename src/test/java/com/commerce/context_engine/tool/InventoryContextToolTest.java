@@ -36,29 +36,13 @@ class InventoryContextToolTest {
     }
 
     @Test
-    void paymentToolsRegistered() {
-        List<String> names = Arrays.stream(toolCallbackProvider.getToolCallbacks())
-                .map(cb -> cb.getToolDefinition().name())
-                .toList();
-
-        assertThat(names).contains(
-                "get_payment_webhook_guide",
-                "get_duplicate_payment_guard",
-                "get_network_cancellation_guide",
-                "get_partial_refund_guide",
-                "get_payment_idempotency_guide",
-                "get_payment_checklist",
-                "search_payment_knowledge"
-        );
-    }
-
-    @Test
     void allToolsRegistered() {
         List<String> names = Arrays.stream(toolCallbackProvider.getToolCallbacks())
                 .map(cb -> cb.getToolDefinition().name())
                 .toList();
 
         assertThat(names).contains(
+                "get_payment_state_machine_guide",
                 "get_settlement_timing",
                 "get_settlement_deduction",
                 "get_settlement_cycle",
@@ -78,7 +62,7 @@ class InventoryContextToolTest {
                 "get_spring_commerce_checklist",
                 "search_spring_commerce_knowledge"
         );
-        assertThat(names).hasSize(31);
+        assertThat(names).hasSize(33);
     }
 
     @Test

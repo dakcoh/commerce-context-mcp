@@ -1,5 +1,6 @@
 package com.commerce.context_engine;
 
+import com.commerce.context_engine.domain.SimpleKnowledgeItem;
 import com.commerce.context_engine.domain.commerce.CommerceKnowledgeProperties;
 import com.commerce.context_engine.domain.coupon.CouponKnowledgeProperties;
 import com.commerce.context_engine.domain.inventory.InventoryKnowledgeProperties;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -26,7 +26,7 @@ class KnowledgeSchemaValidationTest {
     private static final Set<String> INVENTORY_CATEGORIES = Set.of(
             "lifecycle", "concurrency", "idempotency", "consistency", "checklist");
     private static final Set<String> PAYMENT_CATEGORIES = Set.of(
-            "webhook", "duplicate", "network-cancel", "refund", "idempotency", "checklist");
+            "webhook", "duplicate", "network-cancel", "refund", "idempotency", "state-machine", "checklist");
     private static final Set<String> SETTLEMENT_CATEGORIES = Set.of(
             "timing", "deduction", "cycle", "integrity", "checklist");
     private static final Set<String> COUPON_CATEGORIES = Set.of(
@@ -62,15 +62,14 @@ class KnowledgeSchemaValidationTest {
     @Test
     void allKnowledgeItems_haveGloballyUniqueValidIds() {
         List<String> ids = Stream.of(
-                        simpleItems("inventory", inventoryItems()),
-                        simpleItems("payment", paymentItems()),
-                        simpleItems("settlement", settlementItems()),
-                        simpleItems("coupon", couponItems()),
-                        commerceItems(),
-                        springCommerceItems()
+                        inventory.getItems().stream().map(SimpleKnowledgeItem::getId),
+                        payment.getItems().stream().map(SimpleKnowledgeItem::getId),
+                        settlement.getItems().stream().map(SimpleKnowledgeItem::getId),
+                        coupon.getItems().stream().map(SimpleKnowledgeItem::getId),
+                        commerce.getItems().stream().map(CommerceKnowledgeProperties.Item::getId),
+                        springCommerce.getItems().stream().map(SpringCommerceKnowledgeProperties.Item::getId)
                 )
-                .flatMap(Collection::stream)
-                .map(KnowledgeItem::id)
+                .flatMap(s -> s)
                 .toList();
 
         assertThat(ids)
@@ -81,10 +80,10 @@ class KnowledgeSchemaValidationTest {
 
     @Test
     void simpleDomainKnowledge_hasRequiredFieldsAndAllowedCategories() {
-        assertSimpleItems("inventory", inventoryItems(), INVENTORY_CATEGORIES);
-        assertSimpleItems("payment", paymentItems(), PAYMENT_CATEGORIES);
-        assertSimpleItems("settlement", settlementItems(), SETTLEMENT_CATEGORIES);
-        assertSimpleItems("coupon", couponItems(), COUPON_CATEGORIES);
+        assertSimpleItems("inventory", inventory.getItems(), INVENTORY_CATEGORIES);
+        assertSimpleItems("payment", payment.getItems(), PAYMENT_CATEGORIES);
+        assertSimpleItems("settlement", settlement.getItems(), SETTLEMENT_CATEGORIES);
+        assertSimpleItems("coupon", coupon.getItems(), COUPON_CATEGORIES);
     }
 
     @Test
@@ -121,8 +120,15 @@ class KnowledgeSchemaValidationTest {
         assertThat(items).as(domain + " items").isNotEmpty();
 
         assertThat(items).allSatisfy(item -> {
-            assertCommonFields(domain, item.id(), item.category(), item.title(), item.tags(), allowedCategories);
-            assertThat(item.content()).as(item.id() + " content").isNotBlank();
+            assertCommonFields(domain, item.getId(), item.getCategory(), item.getTitle(), item.getTags(), allowedCategories);
+            assertThat(item.getSummary()).as(item.getId() + " summary").isNotBlank();
+            // checklist 카테고리는 checklist 필드만 필수
+            if ("checklist".equals(item.getCategory())) {
+                assertRequiredList(item.getId(), "checklist", item.getChecklist());
+            } else {
+                assertRequiredList(item.getId(), "guidance", item.getGuidance());
+                assertRequiredList(item.getId(), "avoidPatterns", item.getAvoidPatterns());
+            }
         });
     }
 
@@ -146,57 +152,4 @@ class KnowledgeSchemaValidationTest {
         assertThat(values).as(id + " " + fieldName).allSatisfy(value -> assertThat(value).isNotBlank());
     }
 
-    private List<KnowledgeItem> commerceItems() {
-        return commerce.getItems().stream()
-                .map(item -> new KnowledgeItem("commerce", item.getId()))
-                .toList();
-    }
-
-    private List<KnowledgeItem> springCommerceItems() {
-        return springCommerce.getItems().stream()
-                .map(item -> new KnowledgeItem("spring-commerce", item.getId()))
-                .toList();
-    }
-
-    private static List<KnowledgeItem> simpleItems(String domain, List<? extends SimpleKnowledgeItem> items) {
-        return items.stream()
-                .map(item -> new KnowledgeItem(domain, item.id()))
-                .toList();
-    }
-
-    private List<SimpleKnowledgeItem> inventoryItems() {
-        return inventory.getItems().stream()
-                .map(item -> new SimpleKnowledgeItem(item.getId(), item.getCategory(), item.getTitle(), item.getContent(), item.getTags()))
-                .toList();
-    }
-
-    private List<SimpleKnowledgeItem> paymentItems() {
-        return payment.getItems().stream()
-                .map(item -> new SimpleKnowledgeItem(item.getId(), item.getCategory(), item.getTitle(), item.getContent(), item.getTags()))
-                .toList();
-    }
-
-    private List<SimpleKnowledgeItem> settlementItems() {
-        return settlement.getItems().stream()
-                .map(item -> new SimpleKnowledgeItem(item.getId(), item.getCategory(), item.getTitle(), item.getContent(), item.getTags()))
-                .toList();
-    }
-
-    private List<SimpleKnowledgeItem> couponItems() {
-        return coupon.getItems().stream()
-                .map(item -> new SimpleKnowledgeItem(item.getId(), item.getCategory(), item.getTitle(), item.getContent(), item.getTags()))
-                .toList();
-    }
-
-    private record KnowledgeItem(String domain, String id) {
-    }
-
-    private record SimpleKnowledgeItem(
-            String id,
-            String category,
-            String title,
-            String content,
-            List<String> tags
-    ) {
-    }
 }

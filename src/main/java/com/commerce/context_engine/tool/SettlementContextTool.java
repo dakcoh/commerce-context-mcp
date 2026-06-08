@@ -1,6 +1,8 @@
 package com.commerce.context_engine.tool;
 
-import com.commerce.context_engine.service.SettlementKnowledgeService;
+import com.commerce.context_engine.core.KnowledgeQuery;
+import com.commerce.context_engine.core.KnowledgeRenderer;
+import com.commerce.context_engine.core.KnowledgeSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -10,7 +12,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SettlementContextTool {
 
-    private final SettlementKnowledgeService knowledgeService;
+    private final KnowledgeSearchService searchService;
+    private final KnowledgeRenderer renderer;
 
     @Tool(name = "get_settlement_timing",
           description = """
@@ -19,7 +22,7 @@ public class SettlementContextTool {
                   '정산 시점', '정산 기준일', '구매 확정 정산', '배송 완료 정산' 요청 시 호출하세요.
                   """)
     public String getSettlementTiming() {
-        return knowledgeService.getSettlementTiming();
+        return renderer.renderAll(searchService.getByCategory("settlement", "timing"));
     }
 
     @Tool(name = "get_settlement_deduction",
@@ -29,7 +32,7 @@ public class SettlementContextTool {
                   '정산 공제', '수수료 공제', '반품 공제', '정산 금액 계산' 요청 시 호출하세요.
                   """)
     public String getSettlementDeduction() {
-        return knowledgeService.getSettlementDeduction();
+        return renderer.renderAll(searchService.getByCategory("settlement", "deduction"));
     }
 
     @Tool(name = "get_settlement_cycle",
@@ -39,7 +42,7 @@ public class SettlementContextTool {
                   '정산 배치', '정산 주기', '배치 멱등성', '정산 스케줄러' 요청 시 호출하세요.
                   """)
     public String getSettlementCycle() {
-        return knowledgeService.getSettlementCycle();
+        return renderer.renderAll(searchService.getByCategory("settlement", "cycle"));
     }
 
     @Tool(name = "get_settlement_integrity",
@@ -49,7 +52,7 @@ public class SettlementContextTool {
                   '정산 정합성', '정산 검증', '정산 타임존', '정산 누락' 요청 시 호출하세요.
                   """)
     public String getSettlementIntegrity() {
-        return knowledgeService.getSettlementIntegrity();
+        return renderer.renderAll(searchService.getByCategory("settlement", "integrity"));
     }
 
     @Tool(name = "get_settlement_checklist",
@@ -59,16 +62,22 @@ public class SettlementContextTool {
                   '정산 체크리스트', '정산 검토', '정산 구현 확인' 요청 시 호출하세요.
                   """)
     public String getSettlementChecklist() {
-        return knowledgeService.getChecklist();
+        return renderer.renderChecklist(searchService.getByCategory("settlement", "checklist"));
     }
 
     @Tool(name = "search_settlement_knowledge",
           description = """
                   키워드로 정산 도메인 지식을 검색합니다.
-                  title, content, tags에서 검색하며 관련 항목을 반환합니다.
+                  title, summary, tags, 섹션 내용에서 검색하며 관련도 순으로 반환합니다.
                   """)
     public String searchSettlementKnowledge(
             @ToolParam(description = "검색 키워드 (예: '배치', '공제', '타임존', '정합성')") String keyword) {
-        return knowledgeService.search(keyword);
+        if (keyword == null || keyword.isBlank()) {
+            return "검색 키워드를 입력해주세요.";
+        }
+        var results = searchService.search(KnowledgeQuery.ofDomainAndKeyword("settlement", keyword));
+        return results.isEmpty()
+                ? "관련 정산 도메인 지식을 찾을 수 없습니다. 키워드: " + keyword
+                : renderer.renderSearchResults(results);
     }
 }

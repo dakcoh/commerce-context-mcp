@@ -1,8 +1,12 @@
 package com.commerce.context_engine.tool;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -11,6 +15,35 @@ class PaymentContextToolTest {
 
     @Autowired
     PaymentContextTool tool;
+
+    @Autowired
+    ToolCallbackProvider toolCallbackProvider;
+
+    @Test
+    void paymentToolsRegistered() {
+        List<String> names = Arrays.stream(toolCallbackProvider.getToolCallbacks())
+                .map(cb -> cb.getToolDefinition().name())
+                .toList();
+
+        assertThat(names).contains(
+                "get_payment_state_machine_guide",
+                "get_payment_webhook_guide",
+                "get_duplicate_payment_guard",
+                "get_network_cancellation_guide",
+                "get_partial_refund_guide",
+                "get_payment_idempotency_guide",
+                "get_payment_checklist",
+                "search_payment_knowledge"
+        );
+    }
+
+    @Test
+    void getPaymentStateMachineGuide_containsAllStates() {
+        String result = tool.getPaymentStateMachineGuide();
+        assertThat(result).contains("PENDING");
+        assertThat(result).contains("UNCERTAIN");
+        assertThat(result).contains("PAID");
+    }
 
     @Test
     void getPaymentWebhookGuide_returnsNonEmpty() {

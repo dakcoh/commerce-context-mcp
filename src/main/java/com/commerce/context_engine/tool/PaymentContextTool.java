@@ -1,6 +1,8 @@
 package com.commerce.context_engine.tool;
 
-import com.commerce.context_engine.service.PaymentKnowledgeService;
+import com.commerce.context_engine.core.KnowledgeQuery;
+import com.commerce.context_engine.core.KnowledgeRenderer;
+import com.commerce.context_engine.core.KnowledgeSearchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -10,7 +12,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PaymentContextTool {
 
-    private final PaymentKnowledgeService knowledgeService;
+    private final KnowledgeSearchService searchService;
+    private final KnowledgeRenderer renderer;
 
     @Tool(name = "get_payment_webhook_guide",
           description = """
@@ -19,7 +22,7 @@ public class PaymentContextTool {
                   '웹훅', 'webhook', '결제 알림', 'PG 콜백', '결제 완료 처리' 요청 시 호출하세요.
                   """)
     public String getPaymentWebhookGuide() {
-        return knowledgeService.getWebhookGuide();
+        return renderer.renderAll(searchService.getByCategory("payment", "webhook"));
     }
 
     @Tool(name = "get_duplicate_payment_guard",
@@ -29,7 +32,7 @@ public class PaymentContextTool {
                   '중복 결제', '이중 결제', '결제 중복', 'double payment' 요청 시 호출하세요.
                   """)
     public String getDuplicatePaymentGuard() {
-        return knowledgeService.getDuplicatePaymentGuard();
+        return renderer.renderAll(searchService.getByCategory("payment", "duplicate"));
     }
 
     @Tool(name = "get_network_cancellation_guide",
@@ -39,7 +42,7 @@ public class PaymentContextTool {
                   '망취소', '타임아웃', '결제 응답 없음', '결제 상태 불명확', 'network cancel' 요청 시 호출하세요.
                   """)
     public String getNetworkCancellationGuide() {
-        return knowledgeService.getNetworkCancellationGuide();
+        return renderer.renderAll(searchService.getByCategory("payment", "network-cancel"));
     }
 
     @Tool(name = "get_partial_refund_guide",
@@ -49,7 +52,18 @@ public class PaymentContextTool {
                   '부분 취소', '부분 환불', '환불 금액 계산', '쿠폰 환불', '포인트 환불' 요청 시 호출하세요.
                   """)
     public String getPartialRefundGuide() {
-        return knowledgeService.getPartialRefundGuide();
+        return renderer.renderAll(searchService.getByCategory("payment", "refund"));
+    }
+
+    @Tool(name = "get_payment_state_machine_guide",
+          description = """
+                  결제 상태 머신과 전이 가드 가이드를 반환합니다.
+                  PENDING → PROCESSING → PAID/FAILED/UNCERTAIN/CANCELLED 전이 규칙,
+                  UNCERTAIN 스케줄러 자동 처리, 잘못된 전이 방어, 낙관락(@Version) 기반 원자적 전이를 포함합니다.
+                  '결제 상태', '상태 머신', '상태 전이', '중복 결제 방지', 'UNCERTAIN', 'state machine' 요청 시 호출하세요.
+                  """)
+    public String getPaymentStateMachineGuide() {
+        return renderer.renderAll(searchService.getByCategory("payment", "state-machine"));
     }
 
     @Tool(name = "get_payment_idempotency_guide",
@@ -59,7 +73,7 @@ public class PaymentContextTool {
                   '결제 멱등성', 'Idempotency-Key', '결제 재시도', '결제 중복 방지' 요청 시 호출하세요.
                   """)
     public String getPaymentIdempotencyGuide() {
-        return knowledgeService.getPaymentIdempotencyGuide();
+        return renderer.renderAll(searchService.getByCategory("payment", "idempotency"));
     }
 
     @Tool(name = "get_payment_checklist",
@@ -69,17 +83,23 @@ public class PaymentContextTool {
                   '결제 체크리스트', '결제 검토', '결제 구현 확인' 요청 시 호출하세요.
                   """)
     public String getPaymentChecklist() {
-        return knowledgeService.getChecklist();
+        return renderer.renderChecklist(searchService.getByCategory("payment", "checklist"));
     }
 
     @Tool(name = "search_payment_knowledge",
           description = """
                   키워드로 결제 도메인 지식을 검색합니다.
-                  title, content, tags에서 검색하며 관련 항목을 반환합니다.
+                  title, summary, tags, 섹션 내용에서 검색하며 관련도 순으로 반환합니다.
                   특정 결제 주제에 대한 지식을 찾을 때 사용하세요.
                   """)
     public String searchPaymentKnowledge(
             @ToolParam(description = "검색 키워드 (예: 'HMAC', '망취소', '부분환불', '멱등성')") String keyword) {
-        return knowledgeService.search(keyword);
+        if (keyword == null || keyword.isBlank()) {
+            return "검색 키워드를 입력해주세요.";
+        }
+        var results = searchService.search(KnowledgeQuery.ofDomainAndKeyword("payment", keyword));
+        return results.isEmpty()
+                ? "관련 결제 도메인 지식을 찾을 수 없습니다. 키워드: " + keyword
+                : renderer.renderSearchResults(results);
     }
 }

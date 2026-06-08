@@ -3,78 +3,135 @@ inventory:
     - id: stock-reservation
       category: lifecycle
       title: "재고 예약/확정/복구 단계 분리"
-      content: |
-        재고 차감은 반드시 3단계로 처리한다.
-        1. 예약(Reserve): 주문 요청 시 가용 재고를 임시 잠금
-        2. 확정(Confirm): 결제 성공 시 실제 차감
-        3. 복구(Release): 결제 실패/취소 시 예약 해제
-        예약 단계 없이 바로 stock - quantity 하면 결제 실패 시 재고 미복구 및 오버셀링 발생.
+      summary: "재고 차감은 예약→확정→복구 3단계로 처리해야 오버셀링을 막을 수 있다"
+      guidance:
+        - "예약(Reserve): 주문 요청 시 가용 재고를 임시 잠금"
+        - "확정(Confirm): 결제 성공 시 실제 차감"
+        - "복구(Release): 결제 실패/취소 시 예약 해제"
+      avoid-patterns:
+        - "예약 단계 없이 바로 stock - quantity 하면 결제 실패 시 재고 미복구 및 오버셀링 발생"
+      checklist:
+        - "재고 예약 단계 없이 바로 차감하지 않았는가?"
+        - "결제 실패 시 재고 복구 로직이 존재하는가?"
       tags: [reservation, lifecycle, overselling]
+
+    - id: available-stock-query
+      category: lifecycle
+      title: "가용 재고 조회 패턴 (AI가 항상 빠뜨리는 핵심)"
+      summary: "재고 판매 가능 여부는 total_quantity가 아닌 (total_quantity - reserved_quantity) 기준으로 확인해야 한다"
+      guidance:
+        - "스키마: stock 테이블에 total_quantity(실물 재고)와 reserved_quantity(예약 중인 수량) 컬럼 분리"
+        - "가용 재고 조회: WHERE (total_quantity - reserved_quantity) >= :requested — 예약 중인 재고 제외"
+        - "예약 시: reserved_quantity += requested (원자적 업데이트, 동시성 제어 적용)"
+        - "결제 성공 확정 시: total_quantity -= confirmed, reserved_quantity -= confirmed"
+        - "결제 실패/취소 복구 시: reserved_quantity -= released (total_quantity 변경 없음)"
+        - "재고 조회 로직: SELECT ... WHERE id = ? AND (total_quantity - reserved_quantity) >= ? FOR UPDATE"
+      avoid-patterns:
+        - "stock.quantity >= requestedQuantity 단순 비교 — 예약 중인 재고를 무시, 오버셀링 발생"
+        - "reserved_quantity 컬럼 없는 단일 quantity 스키마 — 예약과 확정을 구분 불가"
+        - "total_quantity를 예약 시점에 바로 차감 — 결제 실패 시 복구 누락 위험"
+      checklist:
+        - "재고 조회 시 (total - reserved) 기준으로 확인하는가?"
+        - "결제 성공 확정 후 total_quantity와 reserved_quantity가 모두 감소하는가?"
+        - "결제 실패 복구 시 reserved_quantity만 감소하는가? (total_quantity 변경 없음)"
+      tags: [lifecycle, available-stock, reserved-quantity, overselling]
 
     - id: concurrency-optimistic
       category: concurrency
       title: "낙관락 (Optimistic Lock)"
-      content: |
-        @Version private Long version; 으로 적용.
-        충돌이 드문 경우(재고 여유, 동시 주문 적음)에 사용.
-        장점: DB 락 없음, 성능 우수.
-        단점: 충돌 시 재시도 로직 필요. 재시도 횟수 제한 없으면 무한 루프 위험.
+      summary: "충돌이 드문 환경에서 DB 락 없이 재고 동시성을 제어하는 방식"
+      guidance:
+        - "@Version private Long version; 으로 적용"
+        - "충돌이 드문 경우(재고 여유, 동시 주문 적음)에 사용"
+        - "장점: DB 락 없음, 성능 우수"
+        - "충돌 시 재시도 로직 필요 — 재시도 횟수에 반드시 상한(예: 3회) 설정"
+      avoid-patterns:
+        - "재시도 횟수 제한 없으면 무한 루프 위험"
+        - "충돌이 잦은 환경(한정 수량, 동시 요청 폭증)에 낙관락 적용 시 재시도 폭증"
+      checklist:
+        - "재시도 횟수에 상한이 있는가?"
+        - "동시 요청에 대한 동시성 제어가 적용됐는가? (낙관락/비관락/분산락 중 선택)"
       tags: [concurrency, optimistic-lock]
 
     - id: concurrency-pessimistic
       category: concurrency
       title: "비관락 (Pessimistic Lock)"
-      content: |
-        @Lock(LockModeType.PESSIMISTIC_WRITE) 로 적용.
-        충돌이 잦은 경우(인기 상품, 한정 수량)에 사용.
-        장점: 충돌 원천 차단.
-        단점: DB 커넥션 점유, 데드락 위험.
-        주의: 반드시 타임아웃 설정, 락 순서 일관성 유지.
+      summary: "충돌이 잦은 환경(한정 수량)에서 충돌을 원천 차단하는 동시성 제어 방식"
+      guidance:
+        - "@Lock(LockModeType.PESSIMISTIC_WRITE) 로 적용"
+        - "충돌이 잦은 경우(인기 상품, 한정 수량)에 사용"
+        - "장점: 충돌 원천 차단"
+        - "반드시 타임아웃 설정 — 락 점유 시간 무한정 방지"
+        - "락 획득 순서를 일관되게 유지해 데드락 방지"
+      avoid-patterns:
+        - "타임아웃 미설정 — 서버 장애 시 락 영구 점유"
+        - "락 순서 불일치로 데드락 발생"
+        - "DB 커넥션 점유 과다로 커넥션 풀 고갈"
+      checklist:
+        - "비관락 사용 시 타임아웃 설정과 데드락 방어가 있는가?"
+        - "동시 요청에 대한 동시성 제어가 적용됐는가? (낙관락/비관락/분산락 중 선택)"
       tags: [concurrency, pessimistic-lock, deadlock]
 
     - id: concurrency-distributed
       category: concurrency
       title: "분산락 (Distributed Lock — Redis)"
-      content: |
-        Redisson: RLock lock = redissonClient.getLock("inventory:" + productId);
-        lock.tryLock(3, 5, TimeUnit.SECONDS); // 대기 3초, 점유 5초
-        다중 서버/MSA 환경에서 사용.
-        주의: 락 TTL 반드시 설정 (서버 장애 시 자동 해제).
+      summary: "다중 서버/MSA 환경에서 Redis를 활용해 재고 동시성을 제어하는 방식"
+      guidance:
+        - "Redisson: RLock lock = redissonClient.getLock(\"inventory:\" + productId);"
+        - "lock.tryLock(3, 5, TimeUnit.SECONDS); // 대기 3초, 점유 5초"
+        - "다중 서버/MSA 환경에서 단일 JVM 락으로는 동시성 보장 불가 — 분산락 필수"
+        - "락 TTL 반드시 설정 — 서버 장애 시 자동 해제"
+      avoid-patterns:
+        - "락 TTL 미설정 시 서버 장애 후 락 영구 점유"
+        - "Redis 장애 시 폴백 전략 미준비"
+      checklist:
+        - "분산락 사용 시 TTL이 설정됐는가?"
+        - "동시 요청에 대한 동시성 제어가 적용됐는가? (낙관락/비관락/분산락 중 선택)"
       tags: [concurrency, distributed-lock, redis, msa]
 
     - id: idempotency
       category: idempotency
       title: "멱등성 설계 (중복 요청 방어)"
-      content: |
-        요청마다 idempotency key 부여: "order:{orderId}:inventory:{productId}"
-        이미 처리된 키면 저장된 결과를 그대로 반환.
-        키는 TTL 24시간으로 저장.
-        멱등성 없으면 네트워크 재시도 시 재고 이중 차감 발생.
+      summary: "네트워크 재시도로 인한 재고 이중 차감을 idempotency key로 방어한다"
+      guidance:
+        - "요청마다 idempotency key 부여: \"order:{orderId}:inventory:{productId}\""
+        - "이미 처리된 키면 저장된 결과를 그대로 반환"
+        - "키는 TTL 24시간으로 저장"
+      avoid-patterns:
+        - "멱등성 없으면 네트워크 재시도 시 재고 이중 차감 발생"
+      checklist:
+        - "재고 차감 API에 멱등성 키가 적용됐는가?"
       tags: [idempotency, duplicate-request]
 
     - id: saga-pattern
       category: consistency
       title: "Saga 패턴 (주문-결제-재고 정합성)"
-      content: |
-        정상 흐름: 주문 생성 → 재고 예약 → 결제 요청 → 결제 성공 → 재고 확정 차감 → 주문 완료
-        실패 보상: 결제 실패 → 재고 예약 해제 → 주문 취소
-        재고 예약 실패 → 주문 취소 (결제 미진행)
-        주의: MSA 환경에서 @Transactional로는 정합성 보장 불가.
-        Saga 또는 Outbox 패턴 적용 필요.
+      summary: "MSA 분산 환경에서 @Transactional 대신 Saga/Outbox 패턴으로 데이터 정합성을 보장한다"
+      guidance:
+        - "정상 흐름: 주문 생성 → 재고 예약 → 결제 요청 → 결제 성공 → 재고 확정 차감 → 주문 완료"
+        - "실패 보상(Compensation): 결제 실패 → 재고 예약 해제 → 주문 취소"
+        - "재고 예약 실패 → 주문 취소 (결제 미진행)"
+        - "Outbox 패턴으로 이벤트 유실 없이 보상 트랜잭션 보장"
+      avoid-patterns:
+        - "MSA 환경에서 @Transactional로는 분산 정합성 보장 불가"
+        - "보상 트랜잭션 정의 누락 시 결제 실패 후 재고가 예약된 채 방치"
+      checklist:
+        - "MSA 구조라면 Saga 보상 트랜잭션이 정의됐는가?"
+        - "재고 부족 시 적절한 예외 처리와 메시지가 있는가?"
       tags: [saga, consistency, distributed-transaction, outbox]
 
     - id: ai-pitfalls-checklist
       category: checklist
       title: "재고 구현 시 AI가 자주 빠뜨리는 패턴 체크리스트"
-      content: |
-        아래 항목을 반드시 확인하세요:
-
-        [ ] 재고 예약 단계 없이 바로 차감하지 않았는가?
-        [ ] 결제 실패 시 재고 복구 로직이 존재하는가?
-        [ ] 동시 요청에 대한 동시성 제어가 적용됐는가? (낙관락/비관락/분산락 중 선택)
-        [ ] 재고 차감 API에 멱등성 키가 적용됐는가?
-        [ ] 비관락 사용 시 타임아웃 설정과 데드락 방어가 있는가?
-        [ ] 분산락 사용 시 TTL이 설정됐는가?
-        [ ] MSA 구조라면 Saga 보상 트랜잭션이 정의됐는가?
-        [ ] 재고 부족 시 적절한 예외 처리와 메시지가 있는가?
+      summary: "재고 구현 완료 후 반드시 점검할 체크리스트"
+      checklist:
+        - "재고 조회 시 (total - reserved) 기준으로 가용 재고를 확인하는가?"
+        - "재고 예약 단계 없이 바로 차감하지 않았는가?"
+        - "결제 실패 시 재고 복구 로직이 존재하는가?"
+        - "동시 요청에 대한 동시성 제어가 적용됐는가? (낙관락/비관락/분산락 중 선택)"
+        - "재고 차감 API에 멱등성 키가 적용됐는가?"
+        - "비관락 사용 시 타임아웃 설정과 데드락 방어가 있는가?"
+        - "분산락 사용 시 TTL이 설정됐는가?"
+        - "MSA 구조라면 Saga 보상 트랜잭션이 정의됐는가?"
+        - "재고 부족 시 적절한 예외 처리와 메시지가 있는가?"
       tags: [checklist, pitfalls, review]

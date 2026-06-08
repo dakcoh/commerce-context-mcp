@@ -2,21 +2,30 @@
 
 > 목표: Commerce Context MCP를 MCP 서버뿐 아니라 Java/Spring 프로젝트에서 재사용 가능한 지식 라이브러리로 고도화한다.
 
-## 현재 우선순위
+## 현재 상태 (2026-06-08 기준)
 
-외부 사용자가 더 편하게 쓰게 만드는 것이 현재 1순위다.
-따라서 core 모듈 분리는 공개 배포 직후의 필수 작업이 아니라 장기 고도화 계획으로 둔다.
+**Phase 1~4 완료.** core 패키지 경계와 구조화 API가 모두 구현됐다.
 
-현재 외부 사용성은 npm 배포로 1차 완료됐다.
-이후에는 릴리즈 안정화와 설치 문서 보강을 진행하면서 core API 분리를 검토한다.
+| Phase | 내용 | 상태 |
+|-------|------|------|
+| Phase 1 | Core 모델 추가 (KnowledgeEntry·Query·SearchResult·Repository·SearchService·Renderer) | ✅ 완료 |
+| Phase 2 | YAML 정규화 어댑터 (KnowledgeEntryMapper + YamlKnowledgeRepository) | ✅ 완료 |
+| Phase 3 | 검색 서비스 통합 (DefaultKnowledgeSearchService, 스코어링) | ✅ 완료 |
+| Phase 4 | Markdown renderer 분리, MCP Tool 교체, 구 서비스 삭제 | ✅ 완료 |
+| Phase 5 | Gradle 멀티 모듈 분리 | 🔲 선택, 필요 시 진행 |
 
 ## 배경
 
-현재 프로젝트는 Spring AI MCP Server로 동작하기에 충분한 구조를 갖고 있다.
-다만 서비스 계층이 바로 Markdown 문자열을 반환하고, Spring Boot 웹/MCP 의존성이 루트 모듈에 묶여 있어 다른 Java 프로젝트에서 라이브러리처럼 사용하기에는 무겁다.
+현재 프로젝트는 다음 패키지 경계로 구조화됐다.
 
-현재는 외부 사용자가 `npx`와 MCP 설정만으로 사용할 수 있는 상태다.
-core 모듈 분리는 npm 배포 안정화 후 구조화 API가 필요해지는 시점에 적용한다.
+```
+core/       순수 Java 인터페이스 + 모델 (Spring 의존 없음)
+repository/ YamlKnowledgeRepository — YAML → KnowledgeEntry 변환
+service/    DefaultKnowledgeSearchService, MarkdownKnowledgeRenderer
+tool/       @Tool 클래스 — KnowledgeSearchService + KnowledgeRenderer만 의존
+```
+
+Phase 5 (Gradle 멀티 모듈)는 `context-engine-core`를 Maven Central에 독립 배포할 필요가 생길 때 진행한다.
 
 ## 목표
 
@@ -236,74 +245,49 @@ List<KnowledgeSearchResult> results = service.search(
 
 ## 단계별 진행 계획
 
-### Phase 1. Core 모델 추가
+### Phase 1. Core 모델 추가 ✅
 
-- `KnowledgeEntry`
-- `KnowledgeQuery`
-- `KnowledgeSearchResult`
-- `KnowledgeRepository`
-- `KnowledgeSearchService`
-- `KnowledgeRenderer`
+- `KnowledgeEntry` — 6개 도메인 스키마를 통합한 정규화 지식 단위
+- `KnowledgeQuery` — keyword·domain·category·limit + 팩토리 메서드
+- `KnowledgeSearchResult` — entry·matchedFields·score
+- `KnowledgeRepository` — findAll·findByDomain·findByCategory
+- `KnowledgeSearchService` — search·getByDomain·getByCategory
+- `KnowledgeRenderer` — render·renderAll·renderSearchResults·renderChecklist
 
-완료 기준:
-- 기존 서비스와 별개로 core 타입 컴파일 가능
-- 테스트에서 core 검색 결과 객체 검증 가능
+### Phase 2. YAML 정규화 어댑터 ✅
 
-### Phase 2. YAML 정규화 어댑터
+- `KnowledgeEntryMapper` (package-private) — 6개 도메인 Properties.Item → KnowledgeEntry
+- `YamlKnowledgeRepository` — 6개 YAML을 단일 `KnowledgeRepository`로 통합
 
-- 기존 `*KnowledgeProperties`를 `KnowledgeEntry`로 변환하는 mapper 추가
-- 모든 YAML 지식을 단일 `KnowledgeRepository`로 모으는 구현 추가
+### Phase 3. 검색 서비스 통합 ✅
 
-완료 기준:
-- 전체 지식 항목 수를 core repository에서 조회 가능
-- domain/category 필터 테스트 통과
+- `DefaultKnowledgeSearchService` — 스코어링 기반 검색 (title +5 / tags +4 / category +3 / summary +2 / content·sections +1)
+- 전체 도메인 통합 검색 지원 (`KnowledgeQuery.ofKeyword`)
+- 구 도메인별 서비스 6개 삭제
 
-### Phase 3. 검색 서비스 통합
+### Phase 4. Markdown renderer 분리 ✅
 
-- 단순 contains 검색을 core `DefaultKnowledgeSearchService`로 이동
-- match field와 score를 제공
-- 빈 키워드 처리 정책 통일
-
-완료 기준:
-- `inventory`, `payment`, `commerce`, `spring-commerce` 검색이 core API로 동작
-- 기존 도메인별 검색 테스트 통과
-
-### Phase 4. Markdown renderer 분리
-
-- 기존 서비스의 Markdown 포맷 로직을 renderer로 이동
-- MCP 도구는 renderer 결과만 반환
-
-완료 기준:
-- MCP 도구 응답 형식 유지
-- 구조화 API와 Markdown API가 모두 테스트됨
+- `MarkdownKnowledgeRenderer` — simple(summary 없음) / rich(summary 있음) 분기 렌더링
+- 모든 Tool 클래스 교체 (KnowledgeSearchService + KnowledgeRenderer 의존)
+- `UnifiedSearchTool` 추가 — 전체 도메인 통합 검색 (tool 총 32개)
 
 ### Phase 5. Gradle 모듈 분리
 
-선택 사항이다.
-패키지 경계가 안정된 뒤 진행한다.
+선택 사항. `context-engine-core`를 Maven Central에 독립 배포할 필요가 생길 때 진행한다.
 
 완료 기준:
 - `context-engine-core`가 Spring Boot 없이 빌드됨
 - `context-engine-mcp-server`가 core에 의존함
 
-## 테스트 전략
+## 테스트 현황 ✅
 
-추가할 테스트:
-
-- `KnowledgeEntryMapperTest`
-- `YamlKnowledgeRepositoryTest`
-- `DefaultKnowledgeSearchServiceTest`
-- `MarkdownKnowledgeRendererTest`
-- 기존 MCP tool 테스트 유지
-
-검증할 항목:
-
-- 전체 지식 항목 수
-- domain/category 필터
-- keyword 검색
-- score 정렬
-- 빈 키워드 처리
-- Markdown 출력 호환성
+| 테스트 | 수 | 검증 내용 |
+|--------|---|----------|
+| `YamlKnowledgeRepositoryTest` | 8 | 전체 항목 수, 도메인 필터, sections 구조, 필수 필드 |
+| `DefaultKnowledgeSearchServiceTest` | 11 | 키워드 검색, 스코어 정렬, 도메인 필터, limit, matchedFields |
+| `MarkdownKnowledgeRendererTest` | 15 | simple/rich 렌더링, 섹션 헤더, numbered/bullet/checkbox |
+| `UnifiedSearchToolTest` | 5 | 전체 도메인 통합 검색, 빈 키워드, 결과 없음 처리 |
+| MCP Tool 테스트 (6종) | 34 | 각 도구 응답 내용·포맷 검증 |
 
 ## 리스크
 

@@ -6,6 +6,7 @@ import com.commerce.context_engine.tool.InventoryContextTool;
 import com.commerce.context_engine.tool.PaymentContextTool;
 import com.commerce.context_engine.tool.SettlementContextTool;
 import com.commerce.context_engine.tool.SpringCommerceContextTool;
+import com.commerce.context_engine.tool.UnifiedSearchTool;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.context.annotation.Bean;
@@ -20,9 +21,11 @@ public class McpToolConfig {
                                                  SettlementContextTool settlementTool,
                                                  CouponContextTool couponTool,
                                                  CommerceContextTool commerceTool,
-                                                 SpringCommerceContextTool springCommerceTool) {
+                                                 SpringCommerceContextTool springCommerceTool,
+                                                 UnifiedSearchTool unifiedSearchTool) {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(inventoryTool, paymentTool, settlementTool, couponTool, commerceTool, springCommerceTool)
+                .toolObjects(inventoryTool, paymentTool, settlementTool, couponTool, commerceTool,
+                        springCommerceTool, unifiedSearchTool)
                 .build();
     }
 }

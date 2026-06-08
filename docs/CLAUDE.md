@@ -34,34 +34,32 @@ com.commerce.context_engine          ← 루트 패키지 (밑줄 사용, 하이
 │   ├── KnowledgeConfig.java         ← @PropertySource(YAML) + @EnableConfigurationProperties
 │   ├── McpToolConfig.java           ← ToolCallbackProvider 빈 등록
 │   └── YamlPropertySourceFactory.java
-├── domain/inventory/
-│   └── InventoryKnowledgeProperties.java  ← @ConfigurationProperties("inventory")
-├── domain/payment/
-│   └── PaymentKnowledgeProperties.java    ← @ConfigurationProperties("payment")
-├── domain/settlement/
-│   └── SettlementKnowledgeProperties.java ← @ConfigurationProperties("settlement")
-├── domain/coupon/
-│   └── CouponKnowledgeProperties.java     ← @ConfigurationProperties("coupon")
+├── domain/
+│   ├── SimpleKnowledgeItem.java           ← 단순 4개 도메인 공통 아이템 모델 (@Data)
+│   ├── inventory/InventoryKnowledgeProperties.java  ← @ConfigurationProperties("inventory")
+│   ├── payment/PaymentKnowledgeProperties.java      ← @ConfigurationProperties("payment")
+│   ├── settlement/SettlementKnowledgeProperties.java← @ConfigurationProperties("settlement")
+│   └── coupon/CouponKnowledgeProperties.java        ← @ConfigurationProperties("coupon")
 ├── domain/commerce/
 │   └── CommerceKnowledgeProperties.java   ← @ConfigurationProperties("commerce"), 정규화 범용 지식
 ├── domain/springcommerce/
 │   └── SpringCommerceKnowledgeProperties.java ← @ConfigurationProperties("spring-commerce"), Spring 구현 지식
-├── core/                              ← 계획: MCP 밖에서도 쓰는 구조화 지식 API
-│   ├── KnowledgeEntry.java            ← 계획
-│   ├── KnowledgeQuery.java            ← 계획
-│   ├── KnowledgeSearchResult.java     ← 계획
-│   └── KnowledgeSearchService.java    ← 계획
+├── core/                              ← MCP 밖에서도 쓰는 구조화 지식 API (순수 Java, Spring 의존 없음)
+│   ├── KnowledgeEntry.java            ← 정규화 지식 단위 (domain·id·category·title·summary·content·sections·checklist·tags)
+│   ├── KnowledgeQuery.java            ← 검색 조건 (keyword·domain·category·limit)
+│   ├── KnowledgeSearchResult.java     ← 검색 결과 단위 (entry·matchedFields·score)
+│   ├── KnowledgeRepository.java       ← 저장소 인터페이스 (YAML→DB 전환 시 이것만 교체)
+│   ├── KnowledgeSearchService.java    ← 검색 서비스 인터페이스
+│   └── KnowledgeRenderer.java         ← Markdown 렌더러 인터페이스
+├── repository/
+│   ├── KnowledgeEntryMapper.java      ← fromSimple(domain, SimpleKnowledgeItem) + from(Commerce/SpringCommerce) (package-private)
+│   └── YamlKnowledgeRepository.java   ← KnowledgeRepository 구현체 (6개 YAML, @PostConstruct 1회 캐시 빌드)
 ├── service/
-│   ├── KnowledgeSearchSupport.java        ← 검색 유틸 (normalize·contains·safeList 등)
-│   ├── InventoryKnowledgeService.java     ← 재고 지식 쿼리 로직
-│   ├── PaymentKnowledgeService.java       ← 결제 지식 쿼리 로직
-│   ├── SettlementKnowledgeService.java    ← 정산 지식 쿼리 로직
-│   ├── CouponKnowledgeService.java        ← 쿠폰 지식 쿼리 로직
-│   ├── CommerceKnowledgeService.java      ← 범용 이커머스 지식 검색·포맷
-│   └── SpringCommerceKnowledgeService.java ← Java Spring 구현 지식 검색·포맷
+│   ├── DefaultKnowledgeSearchService.java ← KnowledgeSearchService 구현 (스코어링·필터·limit)
+│   └── MarkdownKnowledgeRenderer.java     ← KnowledgeRenderer 구현 (renderRich 단일 경로)
 └── tool/
     ├── InventoryContextTool.java          ← @Tool 6개 (재고)
-    ├── PaymentContextTool.java            ← @Tool 7개 (결제)
+    ├── PaymentContextTool.java            ← @Tool 8개 (결제)
     ├── SettlementContextTool.java         ← @Tool 6개 (정산)
     ├── CouponContextTool.java             ← @Tool 6개 (쿠폰/프로모션)
     ├── CommerceContextTool.java           ← @Tool 3개 (범용 이커머스)
@@ -81,26 +79,31 @@ src/main/resources/knowledge/commerce.yml     ← 범용 이커머스 정규화 
 src/main/resources/knowledge/spring-commerce.yml ← Java Spring 이커머스 구현 지식 20개
 ```
 
-**YAML 구조**:
+**YAML 스키마 (4종)**:
+
+① inventory/payment/settlement/coupon — 구조화 도메인 스키마
 ```yaml
 inventory:
   items:
     - id: unique-id
       category: lifecycle | concurrency | idempotency | consistency | checklist
       title: "표시 제목"
-      content: "지식 내용 (멀티라인 가능)"
+      summary: "한 줄 요약"
+      guidance:
+        - "구현 가이드 항목"
+      avoid-patterns:
+        - "피해야 할 패턴"
+      checklist:
+        - "체크 항목 (checklist 카테고리 필수, 그 외는 선택)"
       tags: [tag1, tag2]
 ```
 
-새 지식 항목 추가는 이 YAML만 편집하면 된다. 코드 변경 불필요.
-
-`commerce.yml`은 범용 지식을 DB 전환 전에 검증하기 위한 정규화 스키마를 사용한다.
-
+② commerce — 범용 이커머스 정규화 스키마
 ```yaml
 commerce:
   items:
     - id: unique-id
-      category: catalog | pricing | order | inventory | payment | fulfillment | promotion | distribution | settlement | operations | customer | checkout | search | claim | security | loyalty | membership | review | subscription
+      category: catalog | pricing | order | inventory | payment | fulfillment | promotion | ...
       title: "표시 제목"
       summary: "핵심 요약"
       business-context: "이커머스 유통 맥락"
@@ -111,6 +114,21 @@ commerce:
       checklist: ["검토 질문"]
       tags: [tag1, tag2]
 ```
+
+③ spring-commerce — Java Spring 구현 지식 스키마
+```yaml
+spring-commerce:
+  items:
+    - id: unique-id
+      summary: "핵심 요약"
+      business-context: "이커머스 맥락"
+      spring-guidance: ["Spring 구현 가이드"]
+      avoid-patterns: ["피해야 할 패턴"]
+      checklist: ["검토 질문"]
+      tags: [tag1, tag2]
+```
+
+새 지식 항목 추가는 해당 YAML만 편집하면 된다. 코드 변경 불필요.
 
 ---
 
@@ -127,10 +145,11 @@ commerce:
 | `get_inventory_checklist` | 재고 AI 구현 실수 체크리스트 |
 | `search_inventory_knowledge` | 재고 도메인 키워드 검색 |
 
-**결제 도메인** (7개)
+**결제 도메인** (8개)
 
 | 도구명 | 설명 |
 |--------|------|
+| `get_payment_state_machine_guide` | 결제 상태 머신과 전이 가드 (PENDING→PAID/UNCERTAIN/CANCELLED) |
 | `get_payment_webhook_guide` | PG사 웹훅 처리 가이드 |
 | `get_duplicate_payment_guard` | 중복 결제 3중 방어 전략 |
 | `get_network_cancellation_guide` | 망취소 처리 가이드 |
@@ -177,6 +196,12 @@ commerce:
 | `get_spring_commerce_checklist` | Spring 백엔드 구현 체크리스트 |
 | `search_spring_commerce_knowledge` | Spring 구현 지식 키워드 검색 |
 
+**전체 통합 검색** (1개)
+
+| 도구명 | 설명 |
+|--------|------|
+| `search_all_knowledge` | 도메인 구분 없이 전체 지식 통합 키워드 검색. 결과는 score 내림차순 |
+
 ---
 
 ## 개발 규칙
@@ -187,17 +212,24 @@ commerce:
 1. docs/DOMAIN_KNOWLEDGE_REFERENCE.md 에 지식 정리
 2. src/main/resources/knowledge/{domain}.yml 작성
 3. domain/{domain}/{Domain}KnowledgeProperties.java 추가
+   - 단순 도메인: List<SimpleKnowledgeItem> items; 만 선언 (inner Item 클래스 불필요)
+   - 리치 도메인: 별도 Item inner class + 필드 정의
 4. config/KnowledgeConfig.java 에 @PropertySource + @EnableConfigurationProperties 추가
-5. service/{Domain}KnowledgeService.java 작성
-6. tool/{Domain}ContextTool.java 에 @Tool 메서드 추가
-7. config/McpToolConfig.java 에 ToolCallbackProvider 빈 추가
-8. docs/CLAUDE.md 의 도구 목록 업데이트
+5. repository/KnowledgeEntryMapper.java
+   - 단순 도메인: 추가 불필요 (fromSimple(domain, item) 범용 메서드 재사용)
+   - 리치 도메인: from({Domain}KnowledgeProperties.Item) 매퍼 추가
+6. repository/YamlKnowledgeRepository.java 에 필드·map{Domain}() 메서드 추가
+7. tool/{Domain}ContextTool.java 작성 (KnowledgeSearchService + KnowledgeRenderer 주입)
+8. config/McpToolConfig.java 에 allToolCallbackProvider() 인자 추가
+9. docs/CLAUDE.md 의 도구 목록 업데이트
 ```
+
+> 서비스 클래스를 별도로 만들 필요 없음. 검색·렌더링은 공통 인프라(`DefaultKnowledgeSearchService`, `MarkdownKnowledgeRenderer`)가 처리한다.
 
 ### Core 모듈 고도화 계획
 
-MCP 서버 밖에서 Java 라이브러리처럼 재사용할 수 있도록 `docs/CORE_MODULE_PLAN.md`를 기준으로 core API를 분리한다.
-초기에는 Gradle 멀티 모듈보다 패키지 경계를 먼저 만들고, 안정화 후 모듈 분리를 검토한다.
+패키지 경계(core / repository / service / tool)가 완성됐다.
+향후 필요 시 Gradle 멀티 모듈로 분리하여 `context-engine-core`를 독립 Java 라이브러리로 배포할 수 있다.
 
 ### 외부 사용자 사용성
 
@@ -210,12 +242,12 @@ MCP 서버 밖에서 Java 라이브러리처럼 재사용할 수 있도록 `docs
 - Lombok 사용 (`@Data`, `@RequiredArgsConstructor`)
 - `@Tool` description은 한국어로, 어떤 상황에 호출해야 하는지 명시
 - `@ToolParam` description은 파라미터 예시까지 포함
-- 서비스 메서드는 `format(List<Item>)` 헬퍼를 통해 일관된 마크다운 출력
+- Tool 클래스는 `KnowledgeSearchService` + `KnowledgeRenderer`에만 의존. 포맷 로직 직접 구현 금지
 
 ### 금지 사항
 
 - SnakeYAML raw Map 캐스팅 금지 (`@ConfigurationProperties`로 대체)
-- `@PostConstruct`로 YAML 수동 파싱 금지 (Spring 바인딩 사용)
+- `@PostConstruct` 내 YAML 직접 파싱 금지 — Spring 바인딩 사용. 단, `YamlKnowledgeRepository`의 엔트리 캐시 빌드처럼 바인딩 결과를 1회 변환하는 용도는 허용
 - 도구 description에 구현 세부사항 기술 금지 (호출 트리거 조건만 작성)
 
 ---
@@ -229,17 +261,14 @@ MCP 서버 밖에서 Java 라이브러리처럼 재사용할 수 있도록 `docs
 
 **테스트 범위**:
 - `KnowledgeSchemaValidationTest` — 전체 YAML 지식 ID 중복, 허용 category, 필수 필드, 태그 검증
-- `InventoryKnowledgeServiceTest` — 카테고리 필터, 키워드 검색, 미등록/빈 키워드 처리
-- `InventoryContextToolTest` — 9개: 31개 도구 등록 확인, 재고 도구 응답 내용 검증
-- `PaymentKnowledgeServiceTest` — 8개: 웹훅/중복/망취소/환불/멱등성/체크리스트/검색
-- `PaymentContextToolTest` — 7개: 각 결제 도구 응답 내용 검증
-- `SettlementKnowledgeServiceTest` — 7개: 시점/공제/배치/정합성/체크리스트/검색
+- `YamlKnowledgeRepositoryTest` — 8개: 전체 항목 수(≥66), 도메인 필터, sections 구조, 필수 필드 검증
+- `DefaultKnowledgeSearchServiceTest` — 11개: 키워드 검색, 스코어 정렬, 도메인 필터, limit, matchedFields
+- `MarkdownKnowledgeRendererTest` — 12개: structured/rich/spring-commerce 렌더링, 섹션 헤더, numbered/bullet/checkbox 리스트
+- `InventoryContextToolTest` — 8개: 33개 도구 등록 확인, 재고 도구 응답 내용 검증
+- `PaymentContextToolTest` — 9개: 결제 도구 등록 확인, state-machine 포함 각 도구 응답 검증
 - `SettlementContextToolTest` — 6개: 각 정산 도구 응답 내용 검증
-- `CouponKnowledgeServiceTest` — 7개: 검증/계산/발급/프로모션/체크리스트/검색
 - `CouponContextToolTest` — 6개: 각 쿠폰 도구 응답 내용 검증
-- `CommerceKnowledgeServiceTest` — 정규화 필드, 통합 검색, 추적 메타데이터 검증
 - `CommerceContextToolTest` — 3개: 범용 이커머스 도구 응답 검증
-- `SpringCommerceKnowledgeServiceTest` — Spring/Java 지식 정규화, 검색 검증
 - `SpringCommerceContextToolTest` — 3개: Java Spring MCP 도구 응답 검증
 - `ContextEngineApplicationTests` — 1개: 컨텍스트 로드 확인
 
@@ -335,5 +364,8 @@ java -jar build/libs/<jar-file> --spring.profiles.active=stdio
 | 4단계 | 주문/결제 정합성 모듈 구현 | ✅ 완료 |
 | 5단계 | 정산 + 쿠폰 도메인 구현 | ✅ 완료 |
 | 5-1단계 | npm 패키지 + GitHub Actions 릴리즈 자동화 | ✅ 완료 |
-| 6단계 | 지식 저장소 DB 전환 + 관리자 API | 🔲 예정 |
+| 6단계 | Core API 분리 + 통합 검색 고도화 | ✅ 완료 (core 패키지 경계, 스코어링 검색, 통합 검색 Tool) |
 | 7단계 | npm 공개 배포 | ✅ 완료 (5-1단계와 함께 선행 완료) |
+| 8단계 | Simple 도메인 스키마 고도화 + 심층 지식 추가 | ✅ 완료 (구조화 스키마 + 가용재고 조회·결제 상태머신·Redis보상 패턴 신규 항목) |
+| 8-1단계 | 코드 품질 개선 | ✅ 완료 (ISP 적용·renderSimple 제거·SimpleKnowledgeItem DRY·@PostConstruct 캐시·state-machine tool 추가) |
+| 9단계 | Gradle 멀티 모듈 분리 (context-engine-core 독립 배포) | 🔲 필요 시 |

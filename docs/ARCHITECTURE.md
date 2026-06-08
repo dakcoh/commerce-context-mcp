@@ -30,25 +30,29 @@
 │  │  CouponContextTool       × 6  (쿠폰/프로모션)     │   │
 │  │  CommerceContextTool     × 3  (범용 이커머스)     │   │
 │  │  SpringCommerceContextTool × 3 (Java Spring)     │   │
-│  └────────────────────┬──────────────────────────────┘   │
-│                       │                                  │
-│  ┌────────────────────▼──────────────────────────────┐   │
-│  │               Service Layer                       │   │
-│  │  {Domain}KnowledgeService × 6                    │   │
-│  │  • category 기반 필터링                            │   │
-│  │  • 키워드 검색 (title + content + tags)            │   │
-│  │  • 마크다운 포맷 변환                              │   │
-│  └────────────────────┬──────────────────────────────┘   │
-│                       │                                  │
-│  ┌────────────────────▼──────────────────────────────┐   │
-│  │             Knowledge Layer                       │   │
-│  │  {Domain}KnowledgeProperties × 6                 │   │
-│  │  (@ConfigurationProperties)                      │   │
-│  │                                                   │   │
-│  │  inventory.yml      payment.yml                   │   │
-│  │  settlement.yml     coupon.yml                    │   │
-│  │  commerce.yml       spring-commerce.yml           │   │
-│  └───────────────────────────────────────────────────┘   │
+│  └──────────┬───────────────────┬───────────────────┘   │
+│             │                   │                        │
+│  ┌──────────▼──────────┐  ┌─────▼──────────────────┐   │
+│  │ KnowledgeSearchService  │  KnowledgeRenderer     │   │
+│  │ DefaultKnowledge-    │  │ MarkdownKnowledge-     │   │
+│  │  SearchService       │  │  Renderer              │   │
+│  └──────────┬──────────┘  └────────────────────────┘   │
+│             │                                           │
+│  ┌──────────▼────────────────────────────────────────┐  │
+│  │  KnowledgeRepository (YamlKnowledgeRepository)    │  │
+│  │  • KnowledgeEntryMapper: Properties → KnowledgeEntry│ │
+│  │  • findAll / findByDomain / findByCategory        │  │
+│  └──────────┬────────────────────────────────────────┘  │
+│             │                                           │
+│  ┌──────────▼────────────────────────────────────────┐  │
+│  │             Knowledge Layer                       │  │
+│  │  {Domain}KnowledgeProperties × 6                 │  │
+│  │  (@ConfigurationProperties)                      │  │
+│  │                                                   │  │
+│  │  inventory.yml      payment.yml                   │  │
+│  │  settlement.yml     coupon.yml                    │  │
+│  │  commerce.yml       spring-commerce.yml           │  │
+│  └───────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -60,14 +64,14 @@
 
 - Spring AI `@Tool` 어노테이션으로 MCP 프로토콜에 메서드를 노출한다.
 - **책임**: 도구 정의, description 작성 (AI가 언제 이 도구를 호출할지 결정하는 핵심)
-- **금지**: 비즈니스 로직 직접 구현. 서비스에 위임만 한다.
+- **의존**: `KnowledgeSearchService`(조회), `KnowledgeRenderer`(포맷)만 주입받는다.
+- **금지**: 포맷 로직·검색 로직 직접 구현.
 
 ### Service Layer (`service/`)
 
-- 지식 쿼리, 필터링, 포맷팅 담당.
-- **책임**: category 기반 필터링, 키워드 검색, 마크다운 변환
-- **공유 유틸**: `KnowledgeSearchSupport` — normalize, containsNormalized, safeList 등 검색 공통 메서드를 패키지-private 유틸로 모아 각 서비스에서 정적 임포트로 사용한다.
-- **확장 포인트**: 추후 DB 전환 시 이 계층만 교체하면 된다.
+- `DefaultKnowledgeSearchService`: `KnowledgeRepository` 기반 스코어링 검색 (title +5 / tags +4 / category +3 / summary +2 / content·sections +1).
+- `MarkdownKnowledgeRenderer`: `KnowledgeEntry`를 Markdown 문자열로 변환. simple(summary 없음) / rich(summary 있음) 두 경로로 분기.
+- **확장 포인트**: DB 전환 시 `YamlKnowledgeRepository`만 교체하면 Tool·Service 계층 변경 없음.
 
 ### Knowledge Layer (`domain/`, `resources/knowledge/`)
 
@@ -244,22 +248,30 @@ MCP 밖에서도 Java 라이브러리처럼 재사용하려면 `KnowledgeEntry`,
 
 ```
 {Domain}ContextTool  (×6)
-    └── {Domain}KnowledgeService  (×6)
-            └── {Domain}KnowledgeProperties  ← @ConfigurationProperties
-                    └── {domain}.yml          ← YAML 파일
+    ├── KnowledgeSearchService (DefaultKnowledgeSearchService)
+    │       └── KnowledgeRepository (YamlKnowledgeRepository)
+    │               ├── KnowledgeEntryMapper      ← Properties.Item → KnowledgeEntry 변환
+    │               ├── InventoryKnowledgeProperties  ← @ConfigurationProperties
+    │               ├── PaymentKnowledgeProperties
+    │               ├── SettlementKnowledgeProperties
+    │               ├── CouponKnowledgeProperties
+    │               ├── CommerceKnowledgeProperties
+    │               └── SpringCommerceKnowledgeProperties
+    │                       └── {domain}.yml      ← YAML 파일
+    └── KnowledgeRenderer (MarkdownKnowledgeRenderer)
 
 McpToolConfig
     └── allToolCallbackProvider(
             inventoryTool, paymentTool, settlementTool,
             couponTool, commerceTool, springCommerceTool
-        )                                      ← ToolCallbackProvider 단일 빈
+        )                                          ← ToolCallbackProvider 단일 빈
 
 KnowledgeConfig
-    ├── YamlPropertySourceFactory              ← YAML 파싱
+    ├── YamlPropertySourceFactory                  ← YAML 파싱
     ├── InventoryKnowledgeProperties
     ├── PaymentKnowledgeProperties
     ├── SettlementKnowledgeProperties
     ├── CouponKnowledgeProperties
     ├── CommerceKnowledgeProperties
-    └── SpringCommerceKnowledgeProperties      ← @EnableConfigurationProperties
+    └── SpringCommerceKnowledgeProperties          ← @EnableConfigurationProperties
 ```
