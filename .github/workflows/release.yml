@@ -21,7 +21,7 @@ jobs:
   test-and-publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write   # 릴리즈에 .sha256 자산을 업로드하기 위해 필요
 
     steps:
       - name: Checkout
@@ -52,6 +52,21 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew validateKnowledge bootJar "-Pversion=${{ steps.version.outputs.VERSION }}" --no-daemon
+
+      # ── 사용자가 실제 받는 JAR 의 체크섬을 생성해 릴리즈에 게시 ──────────────
+      # CI 빌드 산출물이 아니라 릴리즈에 업로드된 JAR 자체에서 해시를 계산해야
+      # npm 실행기가 다운로드한 파일과 정확히 일치한다.
+      - name: Generate and upload JAR checksum
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          JAR="context-engine-${VERSION}.jar"
+          URL="https://github.com/dakcoh/commerce-context-mcp/releases/download/v${VERSION}/${JAR}"
+          curl -fL "$URL" -o "$JAR"
+          sha256sum "$JAR" > "${JAR}.sha256"
+          cat "${JAR}.sha256"
+          gh release upload "v${VERSION}" "${JAR}.sha256" --clobber
 
       # ── npm 패키지 버전 동기화 후 publish ─────────────────────────────────
       - name: Set up Node.js
