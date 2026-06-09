@@ -60,7 +60,7 @@ com.commerce.context_engine          ← 루트 패키지 (밑줄 사용, 하이
 └── tool/
     ├── InventoryContextTool.java          ← @Tool 6개 (재고)
     ├── PaymentContextTool.java            ← @Tool 8개 (결제)
-    ├── SettlementContextTool.java         ← @Tool 6개 (정산)
+    ├── SettlementContextTool.java         ← @Tool 10개 (정산)
     ├── CouponContextTool.java             ← @Tool 6개 (쿠폰/프로모션)
     ├── CommerceContextTool.java           ← @Tool 3개 (범용 이커머스)
     └── SpringCommerceContextTool.java     ← @Tool 3개 (Java Spring 구현)
@@ -158,7 +158,7 @@ spring-commerce:
 | `get_payment_checklist` | 결제 AI 구현 실수 체크리스트 |
 | `search_payment_knowledge` | 결제 도메인 키워드 검색 |
 
-**정산 도메인** (6개)
+**정산 도메인** (10개)
 
 | 도구명 | 설명 |
 |--------|------|
@@ -166,6 +166,10 @@ spring-commerce:
 | `get_settlement_deduction` | 정산 공제와 음수 정산 처리 |
 | `get_settlement_cycle` | 정산 배치 멱등성과 실패 복구 |
 | `get_settlement_integrity` | 정산 정합성과 타임존 검증 |
+| `get_settlement_statement` | 정산 명세서 스냅샷 설계와 셀러 조회 |
+| `get_settlement_tax` | 부가세 분리·세금계산서·원천징수·면세 |
+| `get_settlement_hold` | 분쟁·클레임 중 정산 보류와 부분 보류 |
+| `get_settlement_payout` | 실이체 멱등성·확정/이체 분리·최소 정산금액 |
 | `get_settlement_checklist` | 정산 AI 구현 실수 체크리스트 |
 | `search_settlement_knowledge` | 정산 도메인 키워드 검색 |
 
@@ -262,12 +266,12 @@ spring-commerce:
 
 **테스트 범위**:
 - `KnowledgeSchemaValidationTest` — 전체 YAML 지식 ID 중복, 허용 category, 필수 필드, 태그 검증
-- `YamlKnowledgeRepositoryTest` — 8개: 전체 항목 수(≥66), 도메인 필터, sections 구조, 필수 필드 검증
+- `YamlKnowledgeRepositoryTest` — 8개: 전체 항목 수(≥70), 도메인 필터, sections 구조, 필수 필드 검증
 - `DefaultKnowledgeSearchServiceTest` — 14개: 키워드 검색, 스코어 정렬, 도메인 필터, limit, matchedFields, 다중 단어·띄어쓰기 무관 검색
 - `MarkdownKnowledgeRendererTest` — 12개: structured/rich/spring-commerce 렌더링, 섹션 헤더, numbered/bullet/checkbox 리스트
-- `InventoryContextToolTest` — 8개: 33개 도구 등록 확인, 재고 도구 응답 내용 검증
+- `InventoryContextToolTest` — 8개: 37개 도구 등록 확인, 재고 도구 응답 내용 검증
 - `PaymentContextToolTest` — 9개: 결제 도구 등록 확인, state-machine 포함 각 도구 응답 검증
-- `SettlementContextToolTest` — 6개: 각 정산 도구 응답 내용 검증
+- `SettlementContextToolTest` — 10개: 각 정산 도구 응답 내용 검증 (명세서·세무·보류·지급 포함)
 - `CouponContextToolTest` — 6개: 각 쿠폰 도구 응답 내용 검증
 - `CommerceContextToolTest` — 3개: 범용 이커머스 도구 응답 검증
 - `SpringCommerceContextToolTest` — 3개: Java Spring MCP 도구 응답 검증

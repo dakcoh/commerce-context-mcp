@@ -28,7 +28,8 @@ class KnowledgeSchemaValidationTest {
     private static final Set<String> PAYMENT_CATEGORIES = Set.of(
             "webhook", "duplicate", "network-cancel", "refund", "idempotency", "state-machine", "checklist");
     private static final Set<String> SETTLEMENT_CATEGORIES = Set.of(
-            "timing", "deduction", "cycle", "integrity", "checklist");
+            "timing", "deduction", "cycle", "integrity", "checklist",
+            "statement", "tax", "hold", "payout");
     private static final Set<String> COUPON_CATEGORIES = Set.of(
             "validation", "calculation", "issuance", "promotion", "checklist");
     private static final Set<String> COMMERCE_CATEGORIES = Set.of(

@@ -55,6 +55,50 @@ public class SettlementContextTool {
         return renderer.renderAll(searchService.getByCategory("settlement", "integrity"));
     }
 
+    @Tool(name = "get_settlement_statement",
+          description = """
+                  정산 명세서 설계 가이드를 반환합니다.
+                  명세를 정산 확정 시점의 요율·금액 스냅샷으로 박제하는 방법, 주문별 라인과
+                  지급액 breakdown, 셀러 조회 API 소유권 검증, 명세-원장 정합성을 포함합니다.
+                  '정산 명세서', '정산 내역', '셀러 정산 조회', '명세 스냅샷' 요청 시 호출하세요.
+                  """)
+    public String getSettlementStatement() {
+        return renderer.renderAll(searchService.getByCategory("settlement", "statement"));
+    }
+
+    @Tool(name = "get_settlement_tax",
+          description = """
+                  정산 세무 처리 가이드를 반환합니다.
+                  공급가액·부가세 분리, 면세/과세 상품 구분, 세금계산서 발행 시점,
+                  개인 셀러 원천징수 처리를 포함합니다.
+                  '정산 세무', '부가세', '세금계산서', '원천징수', '면세' 요청 시 호출하세요.
+                  """)
+    public String getSettlementTax() {
+        return renderer.renderAll(searchService.getByCategory("settlement", "tax"));
+    }
+
+    @Tool(name = "get_settlement_hold",
+          description = """
+                  정산 보류 처리 가이드를 반환합니다.
+                  분쟁·클레임·반품 중인 주문 제외, 셀러 단위/주문 단위 부분 보류,
+                  보류 해제 후 이월, 사유·감사 로그를 포함합니다.
+                  '정산 보류', '지급 보류', '분쟁 정산', '클레임 정산', 'chargeback' 요청 시 호출하세요.
+                  """)
+    public String getSettlementHold() {
+        return renderer.renderAll(searchService.getByCategory("settlement", "hold"));
+    }
+
+    @Tool(name = "get_settlement_payout",
+          description = """
+                  정산 지급(실이체) 처리 가이드를 반환합니다.
+                  정산 확정과 은행 이체 상태 분리, 이체 멱등성(이중 지급 방지),
+                  이체 실패·불명확(UNCERTAIN) 처리, 최소 정산금액 이월을 포함합니다.
+                  '정산 지급', '실이체', '이체 실패', '이중 지급', '미지급', '최소 정산금액' 요청 시 호출하세요.
+                  """)
+    public String getSettlementPayout() {
+        return renderer.renderAll(searchService.getByCategory("settlement", "payout"));
+    }
+
     @Tool(name = "get_settlement_checklist",
           description = """
                   정산 구현 시 AI가 자주 빠뜨리는 패턴 체크리스트를 반환합니다.

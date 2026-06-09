@@ -11,7 +11,7 @@ spring:
         version: ${spring.application.version:0.0.0}
         type: SYNC
         # 도구 등록의 단일 기준은 config/McpToolConfig 의 ToolCallbackProvider 빈이다.
-        # 아래 목록은 그 빈과 반드시 일치해야 한다(둘 다 7개 Tool 클래스, 총 33개 @Tool).
+        # 아래 목록은 그 빈과 반드시 일치해야 한다(둘 다 7개 Tool 클래스, 총 37개 @Tool).
         annotation-scanner:
           tool-beans:
             - inventoryContextTool

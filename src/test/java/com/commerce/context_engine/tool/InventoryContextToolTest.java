@@ -47,6 +47,10 @@ class InventoryContextToolTest {
                 "get_settlement_deduction",
                 "get_settlement_cycle",
                 "get_settlement_integrity",
+                "get_settlement_statement",
+                "get_settlement_tax",
+                "get_settlement_hold",
+                "get_settlement_payout",
                 "get_settlement_checklist",
                 "search_settlement_knowledge",
                 "get_coupon_validation_guide",
@@ -62,7 +66,7 @@ class InventoryContextToolTest {
                 "get_spring_commerce_checklist",
                 "search_spring_commerce_knowledge"
         );
-        assertThat(names).hasSize(33);
+        assertThat(names).hasSize(37);
     }
 
     @Test
