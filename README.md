@@ -1,6 +1,9 @@
 # Commerce Context MCP
 
-Java/Spring 이커머스 백엔드 지식을 Claude Code, Cursor 같은 AI 코딩 도구에 연결하는 MCP 서버입니다.
+[![npm version](https://img.shields.io/npm/v/commerce-context-mcp)](https://www.npmjs.com/package/commerce-context-mcp)
+[![license](https://img.shields.io/npm/l/commerce-context-mcp)](LICENSE)
+
+**한국 국내 이커머스** Java/Spring 백엔드 지식을 Claude Code, Cursor 같은 AI 코딩 도구에 연결하는 MCP 서버입니다.
 
 ```powershell
 npx -y commerce-context-mcp doctor
@@ -17,7 +20,7 @@ Commerce Context MCP is an MCP server that provides Java/Spring ecommerce backen
 
 - 재고: 오버셀링, 재고 예약, Saga, 멱등성
 - 결제: 웹훅 중복, 결제 멱등성, 망취소, 부분 환불
-- 정산: 정산 시점, 공제, 대사, 배치 재처리
+- 정산: 정산 시점, 공제, 대사, 배치 재처리, 명세서, 세무(부가세·원천징수), 보류, 실지급
 - 쿠폰/프로모션: 발급 동시성, 할인 계산, 프로모션 규칙
 - Java/Spring 구현: 트랜잭션, JPA, 페이징, 예외 경계
 

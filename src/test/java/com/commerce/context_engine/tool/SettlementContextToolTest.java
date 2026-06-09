@@ -33,6 +33,28 @@ class SettlementContextToolTest {
     }
 
     @Test
+    void getSettlementStatement_containsSnapshot() {
+        assertThat(tool.getSettlementStatement()).contains("스냅샷");
+    }
+
+    @Test
+    void getSettlementTax_containsVat() {
+        assertThat(tool.getSettlementTax()).contains("부가세");
+    }
+
+    @Test
+    void getSettlementHold_containsDispute() {
+        assertThat(tool.getSettlementHold()).contains("분쟁");
+    }
+
+    @Test
+    void getSettlementPayout_containsIdempotentTransfer() {
+        String result = tool.getSettlementPayout();
+        assertThat(result).contains("이체");
+        assertThat(result).contains("멱등");
+    }
+
+    @Test
     void getSettlementChecklist_containsCheckboxes() {
         assertThat(tool.getSettlementChecklist()).contains("[ ]");
     }

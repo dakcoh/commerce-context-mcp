@@ -1,13 +1,14 @@
 {
   "name": "commerce-context-mcp",
   "version": "0.0.1",
-  "description": "Java/Spring ecommerce backend knowledge MCP server for AI coding tools",
+  "description": "Korean domestic ecommerce Java/Spring backend knowledge MCP server for AI coding tools",
   "keywords": [
     "mcp",
     "mcp-server",
     "ai",
     "ecommerce",
     "commerce",
+    "korea",
     "java",
     "spring",
     "backend",

@@ -41,7 +41,7 @@ MCP 클라이언트 설정:
 확인 항목:
 - YAML 지식이 `@ConfigurationProperties`로 정상 바인딩되는지
 - 지식 ID 중복, 허용 category, 필수 필드, 빈 태그가 없는지
-- MCP 도구 33개가 등록되는지
+- MCP 도구 37개가 등록되는지
 - 검색 도구가 핵심 키워드에 맞는 지식을 반환하는지
 
 ## HTTP/SSE 모드

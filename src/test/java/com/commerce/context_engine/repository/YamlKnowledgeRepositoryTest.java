@@ -29,8 +29,8 @@ class YamlKnowledgeRepositoryTest {
 
     @Test
     void findAll_totalCountMatchesYamlItems() {
-        // YAML 지식 현황: inventory 8, payment 7, settlement 5, coupon 6, commerce 20, spring-commerce 20
-        assertThat(repository.findAll()).hasSizeGreaterThanOrEqualTo(66);
+        // YAML 지식 현황: inventory 8, payment 7, settlement 9, coupon 6, commerce 20, spring-commerce 20
+        assertThat(repository.findAll()).hasSizeGreaterThanOrEqualTo(70);
     }
 
     @Test

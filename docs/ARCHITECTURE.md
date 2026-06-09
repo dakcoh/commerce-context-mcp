@@ -22,11 +22,11 @@
 │              (Spring Boot 3.5 + Spring AI MCP)           │
 │                                                          │
 │  ┌───────────────────────────────────────────────────┐   │
-│  │              Tool Layer  (@Tool × 33)             │   │
+│  │              Tool Layer  (@Tool × 37)             │   │
 │  │                                                   │   │
 │  │  InventoryContextTool    × 6  (재고)              │   │
 │  │  PaymentContextTool      × 8  (결제)              │   │
-│  │  SettlementContextTool   × 6  (정산)              │   │
+│  │  SettlementContextTool   × 10 (정산)              │   │
 │  │  CouponContextTool       × 6  (쿠폰/프로모션)     │   │
 │  │  CommerceContextTool     × 3  (범용 이커머스)     │   │
 │  │  SpringCommerceContextTool × 3 (Java Spring)     │   │
@@ -212,7 +212,7 @@ java -jar context-engine.jar --spring.profiles.active=stdio
 > `./gradlew bootRun` 으로 서버를 먼저 실행해야 한다.
 
 **검증 결과** (2026-06-08):
-- `tools/list` → 33개 도구 정상 반환
+- `tools/list` → 37개 도구 정상 반환
 - `tools/call get_inventory_checklist` → 재고 체크리스트 정상 반환
 
 ---
